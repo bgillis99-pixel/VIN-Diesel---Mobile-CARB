@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#003366">
+  
+  <meta name="description" content="California's Premier Mobile CARB Compliance App. Instant VIN Checks & Smoke Testing. Heavy Duty Diesel >14k lbs, Motorhomes, Ag Equip Only. NO GASOLINE CARS.">
+  <meta name="keywords" content="CARB Compliance, Clean Truck Check, Heavy Duty Diesel, Smoke Test, VIN Check, PSIP, OVI Test, OBD Testing, California Trucking, No Gasoline, Diesel Only, Sacramento, Los Angeles, San Diego, Fresno, Bakersfield, Oakland, Redding, Mobile Diesel Mechanic">
+  
+  <meta property="og:title" content="Mobile Carb Check - Compliance App">
+  <meta property="og:description" content="Pocket CARB Assistant. Check VIN Compliance instantly. Request Mobile Smoke/OBD Testing anywhere in California.">
+  <meta property="og:type" content="website">
+  
+  <link rel="canonical" href="https://carbcleantruckcheck.app" />
+  
+  <title>Mobile Carb Check</title>
+  
+  <!-- Tailwind CSS via CDN for simplicity -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    :root {
+      --green: #00C853;
+      --navy: #003366;
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #003366;
+    }
+    /* Custom scrollbar for Webkit */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--green);
+      border-radius: 3px;
+    }
+  </style>
+  
+  <!-- Google Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Mobile Carb Check",
+        "operatingSystem": "iOS, Android, Web",
+        "applicationCategory": "BusinessApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "Mobile application for checking CARB compliance status (VIN, TRUCRS) and locating certified smoke testers in California."
+      },
+      {
+        "@type": "ProfessionalService",
+        "name": "Mobile Carb Check",
+        "telephone": "844-685-8922",
+        "email": "info@carbcleantruckcheck.app",
+        "url": "https://carbcleantruckcheck.app",
+        "areaServed": {
+          "@type": "State",
+          "name": "California"
+        }
+      }
+    ]
+  }
+  </script>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

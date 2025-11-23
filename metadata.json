@@ -1,0 +1,9 @@
+{
+  "name": "VIN DIESEL - Mobile CARB",
+  "description": "The proactive pocket CARB assistant. Check compliance, find testers, analyze smoke tests, and get AI-powered regulatory answers without the hotline wait.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

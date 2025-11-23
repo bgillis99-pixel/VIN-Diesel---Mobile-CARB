@@ -1,0 +1,22 @@
+{
+  "name": "Mobile Carb Check",
+  "short_name": "Mobile Carb",
+  "description": "The proactive pocket CARB assistant. Check compliance, find testers, analyze smoke tests, and get AI-powered regulatory answers without the hotline wait.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#003366",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=icon&color=003366",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=icon&color=003366",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Clean Truck Check App - Norcal CARB Mobile</title>
+    <meta name="description" content="The easiest way to check heavy duty diesel compliance in California. Scan VINs, check status, find testers.">
+    <style>
+        :root { --navy: #003366; --green: #00C853; --bg: #f8f9fa; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; color: var(--navy); background: var(--bg); }
+        
+        header { background: var(--navy); color: white; padding: 20px; text-align: center; }
+        h1 { margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px; }
+        .brand-accent { color: var(--green); }
+        
+        .hero { background: white; padding: 40px 20px; text-align: center; border-bottom: 4px solid var(--green); }
+        .hero h2 { font-size: 28px; margin-bottom: 10px; }
+        .hero p { font-size: 18px; color: #666; max-width: 600px; margin: 0 auto 30px; }
+        
+        .download-card { 
+            background: white; border-radius: 20px; padding: 30px; 
+            box-shadow: 0 10px 30px rgba(0,51,102,0.1); 
+            max-width: 400px; margin: 0 auto; text-align: center; border: 1px solid #eee;
+        }
+        
+        .btn { 
+            display: block; width: 100%; background: var(--green); color: white; 
+            padding: 18px; border-radius: 12px; font-weight: bold; text-decoration: none; 
+            font-size: 18px; margin-bottom: 15px; box-sizing: border-box;
+            box-shadow: 0 4px 10px rgba(0,200,83,0.3); transition: transform 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); background: #00a844; }
+        
+        .comparison { background: #fff; padding: 40px 20px; text-align: center; margin-top: 20px; }
+        .comparison-grid { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 800px; margin: 0 auto; }
+        .comp-card { border: 1px solid #eee; padding: 20px; border-radius: 10px; }
+        .comp-card.bad { background: #fff0f0; border-color: #ffcdd2; }
+        .comp-card.good { background: #f0fff4; border-color: #c8e6c9; border-width: 2px; }
+        
+        .instructions { max-width: 800px; margin: 40px auto; padding: 20px; }
+        .step { display: flex; align-items: start; gap: 20px; background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; border-left: 5px solid var(--navy); }
+        .step-num { background: var(--navy); color: white; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; rounded-full; font-weight: bold; flex-shrink: 0; border-radius: 50%; }
+        
+        .qr-container { margin: 20px 0; }
+        .qr-container img { border: 4px solid var(--navy); border-radius: 10px; }
+        
+        footer { text-align: center; padding: 40px; font-size: 12px; color: #888; }
+        
+        @media(min-width: 768px) {
+            .hero h2 { font-size: 42px; }
+            .comparison-grid { grid-template-columns: 1fr 1fr; }
+            .instructions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+            .instructions h3 { grid-column: 1 / -1; text-align: center; font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>MOBILE CARB <span class="brand-accent">CHECK</span></h1>
+    <p style="font-size: 12px; opacity: 0.8; margin-top: 5px;">POWERED BY NORCAL CARB MOBILE LLC</p>
+</header>
+
+<div class="hero">
+    <h2>Stop worrying about compliance.</h2>
+    <p>Check your VIN status instantly. Find a certified smoke tester near you. No hotline waiting times.</p>
+    
+    <div class="download-card">
+        <div class="qr-container">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://carbcleantruckcheck.app&color=003366" alt="Scan to Download">
+        </div>
+        <p style="font-size: 14px; font-weight: bold; margin-bottom: 20px;">SCAN WITH PHONE CAMERA</p>
+        <a href="https://carbcleantruckcheck.app" class="btn">OPEN APP NOW</a>
+        <p style="font-size: 12px; color: #888;">Works on iPhone & Android • No App Store needed</p>
+    </div>
+</div>
+
+<div class="comparison">
+    <h3>SEE THE DIFFERENCE</h3>
+    <p style="margin-bottom: 30px; color: #666;">Why wait for the state?</p>
+    <div class="comparison-grid">
+        <div class="comp-card bad">
+            <h4 style="color: #d32f2f; margin-top: 0;">THE OLD WAY</h4>
+            <p style="font-size: 14px; color: #555;">
+                Waiting for a card in the mail.<br>
+                Filling out confusing applications.<br>
+                Sitting on hold with the hotline.<br>
+                <strong>Result: ANXIETY.</strong>
+            </p>
+        </div>
+        <div class="comp-card good">
+            <h4 style="color: var(--green); margin-top: 0;">THE MOBILE CARB WAY</h4>
+            <p style="font-size: 14px; color: #003366;">
+                <strong>Instant</strong> VIN Checks.<br>
+                <strong>Direct</strong> access to testers.<br>
+                <strong>AI</strong> answers your questions.<br>
+                <strong>Result: COMPLIANCE.</strong>
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="instructions">
+    <h3>How to Install (It's Easy!)</h3>
+    
+    <div class="column">
+        <h4 style="text-align:center; color: var(--navy);">iPhone (iOS)</h4>
+        <div class="step">
+            <div class="step-num">1</div>
+            <div>
+                <strong>Open in Safari</strong><br>
+                Click the link above or scan the QR code using your iPhone camera.
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <div>
+                <strong>Tap "Share"</strong><br>
+                Tap the square icon with the arrow pointing up at the bottom of the screen.
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <div>
+                <strong>Tap "Add to Home Screen"</strong><br>
+                Scroll down a bit until you see the plus (+) icon. Tap it, then tap "Add".
+            </div>
+        </div>
+    </div>
+
+    <div class="column">
+        <h4 style="text-align:center; color: var(--navy);">Android</h4>
+        <div class="step">
+            <div class="step-num">1</div>
+            <div>
+                <strong>Open in Chrome</strong><br>
+                Click the link above or scan the QR code.
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <div>
+                <strong>Tap the Menu (⋮)</strong><br>
+                Tap the three dots in the very top right corner of the browser.
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <div>
+                <strong>Tap "Install App"</strong><br>
+                Select "Install App" or "Add to Home Screen". It will appear like a real app.
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <p><strong>Norcal CARB Mobile LLC</strong><br>Statewide Heavy Duty Diesel Compliance</p>
+    <p><a href="tel:8446858922" style="color: var(--green); font-weight: bold; text-decoration: none; font-size: 16px;">Call Us: 844-685-8922</a></p>
+    <p>&copy; 2026 Mobile Carb Check. All rights reserved.</p>
+</footer>
+
+</body>
+</html>
