@@ -38,7 +38,7 @@ const App: React.FC = () => {
   const shareUrl = 'https://carbcleantruckcheck.app';
   
   const shareTitle = "Mobile Carb Check";
-  const shareText = "Keep your fleet compliant. Check heavy-duty diesel status instantly and find certified smoke testers without the hotline wait.";
+  const shareText = "Keep your fleet compliant. Check heavy-duty diesel compliance instantly and find certified smoke testers without the hotline wait.";
   const shareBody = `${shareText} Download the app here: ${shareUrl}`;
 
   useEffect(() => {
