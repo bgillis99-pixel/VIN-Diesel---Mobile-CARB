@@ -3,18 +3,7 @@ import { MODEL_NAMES } from "../constants";
 import { Lead, ImageGenerationConfig, AnalysisType, RegistrationData } from "../types";
 
 // This will be replaced by Vercel environment variable
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY |21:47:58.015 
-npm error code ETARGET
-21:47:58.016 
-npm error notarget No matching version found for @google/genai@^0.1.0.
-21:47:58.016 
-npm error notarget In most cases you or one of your dependencies are requesting
-21:47:58.016 
-npm error notarget a package version that doesn't exist.
-21:47:58.018 
-npm error A complete log of this run can be found in: /vercel/.npm/_logs/2025-11-27T05_47_47_403Z-debug-0.log
-21:47:58.049 
-Error: Command "npm install" exited with 1| '' });
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const SYSTEM_INSTRUCTION = `
 You are VIN DIESEL, a specialized AI assistant for California CARB compliance (California Air Resources Board).
