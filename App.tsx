@@ -19,7 +19,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
+  const [currentView, setCurrentView] = useState<AppView>(AppView.ASSISTANT);
   const [user, setUser] = useState<User | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -185,13 +185,7 @@ const App: React.FC = () => {
       <header className="bg-white pt-3 pb-3 px-4 text-center shadow-sm sticky top-0 z-20 border-b-2 border-[#15803d] flex justify-between items-center">
         
         <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#003366] rounded-lg flex items-center justify-center shadow-lg text-white relative overflow-hidden">
-                 <div className="absolute inset-0 border-2 border-[#15803d] rounded-lg"></div>
-                 <svg className="w-6 h-6 relative z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    <path d="M9 12l2 2 4-4" />
-                 </svg>
-            </div>
+            <img src="/logo.png" alt="Mobile Carb Check Logo" className="w-12 h-12 object-contain drop-shadow-md rounded-xl" />
             <div className="text-left leading-tight">
                 <h1 className="text-lg font-black tracking-tighter text-[#003366] leading-none">MOBILE CARB</h1>
                 <p className="text-[#15803d] text-[11px] font-bold tracking-widest uppercase">CHECK APP</p>

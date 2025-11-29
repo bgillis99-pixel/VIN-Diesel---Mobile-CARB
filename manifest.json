@@ -9,12 +9,12 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=icon&color=003366",
+      "src": "/logo.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=icon&color=003366",
+      "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }
