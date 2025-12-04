@@ -13,6 +13,8 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
   const [showTesterSearch, setShowTesterSearch] = useState(false);
   const [zipCode, setZipCode] = useState('');
   const [coverageMessage, setCoverageMessage] = useState('Enter Zip for Local Dispatch');
+  const [dispatchPhone, setDispatchPhone] = useState('617-359-6953');
+  const [regionLabel, setRegionLabel] = useState('Statewide Network');
   const [locating, setLocating] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,26 +45,46 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
   const updateCoverage = (val: string) => {
       setZipCode(val);
       if (val.length >= 3) {
-          const prefix = val.substring(0, 3);
-          const pInt = parseInt(prefix);
+          const prefix = parseInt(val.substring(0, 3));
           
-          if (val.startsWith('958') || val.startsWith('956') || val.startsWith('957')) {
-              setCoverageMessage("✅ Local 916 Sacramento Dispatch Available");
-          } else if (val.startsWith('952') || val.startsWith('953')) {
-              setCoverageMessage("✅ Local 209 San Joaquin Dispatch Available");
-          } else if (val.startsWith('94')) {
-              setCoverageMessage("✅ Bay Area / 415 Coverage Confirmed");
-          } else if (val.startsWith('92')) {
-              setCoverageMessage("✅ San Diego & SoCal Crew Available");
-          } else if (val.startsWith('93')) {
-              setCoverageMessage("✅ Central Valley Route Active");
-          } else if (pInt >= 900 && pInt <= 961) {
-              setCoverageMessage("✅ Norcal CARB Mobile Covers This Area");
+          // LOGIC:
+          // 1. Coastal / Bay Area -> 415-900-8563
+          //    - 939 (Monterey)
+          //    - 940-944 (Peninsula/SF)
+          //    - 945-948 (East Bay/Richmond) -> "Inland to Richmond"
+          //    - 949 (Marin)
+          //    - 950-951 (South Bay/Santa Cruz)
+          //    - 954 (Sonoma/Mendo)
+          //    - 955 (Humboldt/North Coast)
+          const isCoastal = prefix === 939 || (prefix >= 940 && prefix <= 951) || prefix === 954 || prefix === 955;
+
+          // 2. Northern Inland / Fresno & North -> 916-890-4427
+          //    - 936-938 (Fresno/Madera)
+          //    - 952-953 (Stockton/Modesto) -> "East of Richmond"
+          //    - 956-958 (Sacramento)
+          //    - 959 (Butte/Yuba)
+          //    - 960 (Redding/Shasta)
+          //    - 961 (Tahoe/Plumas/Sierra)
+          const isInland = (prefix >= 936 && prefix <= 938) || (prefix >= 952 && prefix <= 953) || (prefix >= 956 && prefix <= 961);
+
+          if (isCoastal) {
+              setDispatchPhone('415-900-8563');
+              setCoverageMessage("✅ Local Coastal/Bay Area Dispatch");
+              setRegionLabel("Monterey • Bay Area • North Coast");
+          } else if (isInland) {
+              setDispatchPhone('916-890-4427');
+              setCoverageMessage("✅ Local Northern Inland Dispatch");
+              setRegionLabel("Fresno • Sacramento • Redding");
           } else {
-              setCoverageMessage("⚠️ Extended Service Area - Call for Quote");
+              // Default / SoCal / Catch-all -> 617-359-6953
+              setDispatchPhone('617-359-6953');
+              setCoverageMessage("✅ Dispatch Available (Statewide)");
+              setRegionLabel("Southern California / Statewide");
           }
       } else {
+          setDispatchPhone('617-359-6953');
           setCoverageMessage("Enter Zip for Local Dispatch");
+          setRegionLabel("Statewide Network");
       }
   };
 
@@ -82,11 +104,13 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
           clearTimeout(timeoutId);
           const lat = pos.coords.latitude;
           let detectedZip = '';
-          if (lat > 38.5) detectedZip = '96001';
-          else if (lat > 38.0) detectedZip = '95814';
-          else if (lat > 37.0) detectedZip = '94103';
-          else if (lat > 35.0) detectedZip = '93721';
-          else detectedZip = '92101';
+          // Rough approximation for demo purposes to trigger regions
+          if (lat > 39.0) detectedZip = '96001'; // Redding (Inland)
+          else if (lat > 38.0) detectedZip = '95814'; // Sacramento (Inland)
+          else if (lat > 37.5) detectedZip = '94103'; // SF (Coastal)
+          else if (lat > 36.5) detectedZip = '93901'; // Monterey (Coastal)
+          else if (lat > 36.0) detectedZip = '93721'; // Fresno (Inland)
+          else detectedZip = '90012'; // LA (Default)
 
           updateCoverage(detectedZip);
           setLocating(false);
@@ -268,11 +292,11 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
                     <div className="space-y-2 text-sm text-gray-600 mb-4 bg-gray-50 p-2 rounded-lg border border-gray-100">
                         <div className="flex items-start gap-2">
                             <span className="text-lg">📍</span>
-                            <span><span className="font-bold text-[#003366]">Location:</span> Statewide Mobile Service (We Come To You)</span>
+                            <span><span className="font-bold text-[#003366]">Region:</span> {regionLabel}</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-lg">📞</span>
-                             <a href="tel:8446858922" className="hover:text-[#15803d] hover:underline"><span className="font-bold text-[#003366]">Phone:</span> 844-685-8922</a>
+                             <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="hover:text-[#15803d] hover:underline"><span className="font-bold text-[#003366]">Phone:</span> {dispatchPhone}</a>
                         </div>
                          <div className="flex items-center gap-2">
                             <span className="text-lg">📧</span>
@@ -280,7 +304,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
                         </div>
                     </div>
 
-                    <a href="tel:8446858922" className="block w-full text-center bg-[#003366] text-white font-bold py-3 rounded-lg hover:bg-[#002244] mb-2 text-lg active:scale-[0.98] transition-transform shadow-md">
+                    <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="block w-full text-center bg-[#003366] text-white font-bold py-3 rounded-lg hover:bg-[#002244] mb-2 text-lg active:scale-[0.98] transition-transform shadow-md">
                         CALL NOW
                     </a>
                 </div>
@@ -336,7 +360,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
                     Results Missing?
                     <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="mt-2 text-xs text-gray-600">Takes 48 hours. If longer, call 844-685-8922.</p>
+                <p className="mt-2 text-xs text-gray-600">Takes 48 hours. If longer, call 617-359-6953.</p>
             </details>
              <details className="group pt-2">
                 <summary className="cursor-pointer font-semibold text-[#003366] text-sm flex justify-between items-center">

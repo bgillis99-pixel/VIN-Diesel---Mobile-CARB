@@ -178,8 +178,8 @@ const App: React.FC = () => {
         </div>
       )}
       
-      <a href="tel:8446858922" className="bg-[#003366] text-white text-xs text-center py-2 font-bold tracking-wide px-2 block hover:bg-[#002244] active:bg-[#004488] transition-colors">
-        NEED IMMEDIATE TESTING? CALL <span className="text-[#15803d] underline">844-685-8922</span> • SERVING CA STATEWIDE
+      <a href="tel:6173596953" className="bg-[#003366] text-white text-xs text-center py-2 font-bold tracking-wide px-2 block hover:bg-[#002244] active:bg-[#004488] transition-colors">
+        NEED IMMEDIATE TESTING? CALL <span className="text-[#15803d] underline">617-359-6953</span> • SERVING CA STATEWIDE
       </a>
 
       <header className="bg-white pt-3 pb-3 px-4 text-center shadow-sm sticky top-0 z-20 border-b-2 border-[#15803d] flex justify-between items-center">
@@ -340,7 +340,7 @@ const App: React.FC = () => {
          <p>Copyright 2026 Mobile Carb Check</p>
          <a href="mailto:info@carbcleantruckcheck.app" className="text-[#15803d] hover:underline font-bold">info@carbcleantruckcheck.app</a>
          <p className="text-[10px] font-bold">
-             <a href="tel:8446858922">844-685-8922</a>
+             <a href="tel:6173596953">617-359-6953</a>
          </p>
       </div>
 
