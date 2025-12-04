@@ -185,7 +185,16 @@ const App: React.FC = () => {
       <header className="bg-white pt-3 pb-3 px-4 text-center shadow-sm sticky top-0 z-20 border-b-2 border-[#15803d] flex justify-between items-center">
         
         <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Mobile Carb Check Logo" className="w-12 h-12 object-contain drop-shadow-md rounded-xl" />
+            <img 
+              src="/logo.svg" 
+              onError={(e) => {
+                // Fallback if svg fails for some reason
+                e.currentTarget.onerror = null; 
+                e.currentTarget.style.display = 'none';
+              }}
+              alt="Mobile Carb Check Logo" 
+              className="w-12 h-12 object-contain drop-shadow-md rounded-xl" 
+            />
             <div className="text-left leading-tight">
                 <h1 className="text-lg font-black tracking-tighter text-[#003366] leading-none">MOBILE CARB</h1>
                 <p className="text-[#15803d] text-[11px] font-bold tracking-widest uppercase">CHECK APP</p>
