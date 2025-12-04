@@ -47,34 +47,36 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
       if (val.length >= 3) {
           const prefix = parseInt(val.substring(0, 3));
           
-          // LOGIC:
-          // 1. Coastal / Bay Area -> 415-900-8563
-          //    - 939 (Monterey)
-          //    - 940-944 (Peninsula/SF)
-          //    - 945-948 (East Bay/Richmond) -> "Inland to Richmond"
-          //    - 949 (Marin)
-          //    - 950-951 (South Bay/Santa Cruz)
-          //    - 954 (Sonoma/Mendo)
-          //    - 955 (Humboldt/North Coast)
+          // REGION 1: CENTRAL VALLEY / 209 & 559 AREA CODES -> 209-818-1371
+          // 936-938 (Fresno/Madera/Visalia - 559)
+          // 952-953 (Stockton/Modesto - 209)
+          const isCentralValley = (prefix >= 936 && prefix <= 938) || (prefix >= 952 && prefix <= 953);
+
+          // REGION 2: SACRAMENTO / NORTHERN INLAND (916/530) -> 916-890-4427
+          // 956-958 (Sacramento)
+          // 959 (Butte/Yuba)
+          // 960 (Redding/Shasta)
+          // 961 (Tahoe/Plumas/Sierra)
+          const isSacramentoNorth = (prefix >= 956 && prefix <= 961);
+
+          // REGION 3: COASTAL / BAY AREA -> 415-900-8563
+          // 939 (Monterey)
+          // 940-951 (Bay Area, includes 925 zips inside 945 prefix, and 948 Richmond)
+          // 954-955 (Sonoma/Mendo/Humboldt)
           const isCoastal = prefix === 939 || (prefix >= 940 && prefix <= 951) || prefix === 954 || prefix === 955;
 
-          // 2. Northern Inland / Fresno & North -> 916-890-4427
-          //    - 936-938 (Fresno/Madera)
-          //    - 952-953 (Stockton/Modesto) -> "East of Richmond"
-          //    - 956-958 (Sacramento)
-          //    - 959 (Butte/Yuba)
-          //    - 960 (Redding/Shasta)
-          //    - 961 (Tahoe/Plumas/Sierra)
-          const isInland = (prefix >= 936 && prefix <= 938) || (prefix >= 952 && prefix <= 953) || (prefix >= 956 && prefix <= 961);
-
-          if (isCoastal) {
+          if (isCentralValley) {
+              setDispatchPhone('209-818-1371');
+              setCoverageMessage("✅ Local Central Valley Dispatch");
+              setRegionLabel("Stockton • Fresno • Modesto");
+          } else if (isSacramentoNorth) {
+              setDispatchPhone('916-890-4427');
+              setCoverageMessage("✅ Local Northern Inland Dispatch");
+              setRegionLabel("Sacramento • Redding • Tahoe");
+          } else if (isCoastal) {
               setDispatchPhone('415-900-8563');
               setCoverageMessage("✅ Local Coastal/Bay Area Dispatch");
               setRegionLabel("Monterey • Bay Area • North Coast");
-          } else if (isInland) {
-              setDispatchPhone('916-890-4427');
-              setCoverageMessage("✅ Local Northern Inland Dispatch");
-              setRegionLabel("Fresno • Sacramento • Redding");
           } else {
               // Default / SoCal / Catch-all -> 617-359-6953
               setDispatchPhone('617-359-6953');
@@ -105,12 +107,12 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
           const lat = pos.coords.latitude;
           let detectedZip = '';
           // Rough approximation for demo purposes to trigger regions
-          if (lat > 39.0) detectedZip = '96001'; // Redding (Inland)
-          else if (lat > 38.0) detectedZip = '95814'; // Sacramento (Inland)
-          else if (lat > 37.5) detectedZip = '94103'; // SF (Coastal)
-          else if (lat > 36.5) detectedZip = '93901'; // Monterey (Coastal)
-          else if (lat > 36.0) detectedZip = '93721'; // Fresno (Inland)
-          else detectedZip = '90012'; // LA (Default)
+          if (lat > 39.0) detectedZip = '96001'; // Redding (Sacramento/North - 916)
+          else if (lat > 38.0) detectedZip = '95814'; // Sacramento (Sacramento/North - 916)
+          else if (lat > 37.5) detectedZip = '94103'; // SF (Coastal - 415)
+          else if (lat > 36.5) detectedZip = '93901'; // Monterey (Coastal - 415)
+          else if (lat > 36.0) detectedZip = '93721'; // Fresno (Central Valley - 209)
+          else detectedZip = '90012'; // LA (Default - 617)
 
           updateCoverage(detectedZip);
           setLocating(false);
