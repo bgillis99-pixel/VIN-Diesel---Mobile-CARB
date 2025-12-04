@@ -184,7 +184,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
   return (
     <div className="flex flex-col items-center w-full pb-10">
       
-      <div className="w-full bg-gradient-to-b from-[#003366] to-[#f8f9fa] pb-12 pt-6 px-4 rounded-b-[3rem] shadow-sm mb-[-40px]">
+      <div className="w-full bg-gradient-to-b from-[#003366] to-[#f8f9fa] dark:to-gray-900 pb-12 pt-6 px-4 rounded-b-[3rem] shadow-sm mb-[-40px]">
         <div className="max-w-md mx-auto text-center text-white">
             <h2 className="text-xl font-light opacity-90 tracking-wide mb-1">CALIFORNIA STATEWIDE</h2>
             <p className="text-3xl font-black tracking-tight mb-6">Compliance Status & Mobile Testing</p>
@@ -195,13 +195,13 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
         </div>
       </div>
 
-      <div className="bg-white p-6 sm:p-8 rounded-[24px] shadow-[0_20px_40px_rgba(0,51,102,0.15)] border border-gray-100 w-full max-w-md text-center relative overflow-hidden z-10">
+      <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[24px] shadow-[0_20px_40px_rgba(0,51,102,0.15)] border border-gray-100 dark:border-gray-700 w-full max-w-md text-center relative overflow-hidden z-10">
         
         {loading && (
-          <div className="absolute inset-0 bg-white/95 flex items-center justify-center z-20 backdrop-blur-sm">
+          <div className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 flex items-center justify-center z-20 backdrop-blur-sm">
             <div className="text-center">
                 <div className="w-12 h-12 border-4 border-[#15803d] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <div className="text-[#003366] font-bold animate-pulse">Analyzing VIN...</div>
+                <div className="text-[#003366] dark:text-white font-bold animate-pulse">Analyzing VIN...</div>
             </div>
           </div>
         )}
@@ -223,7 +223,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
             onChange={(e) => setInputVal(e.target.value.toUpperCase())}
             placeholder="VIN • Entity • TRUCRS"
             maxLength={17}
-            className="w-full p-4 text-2xl font-black text-center border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#15803d] focus:ring-4 focus:ring-green-50 transition-all font-mono uppercase tracking-widest text-[#003366] placeholder:text-gray-300 placeholder:text-lg placeholder:font-sans placeholder:font-normal"
+            className="w-full p-4 text-2xl font-black text-center border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:border-[#15803d] focus:ring-4 focus:ring-green-50 transition-all font-mono uppercase tracking-widest text-[#003366] placeholder:text-gray-300 placeholder:text-lg placeholder:font-sans placeholder:font-normal"
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none">
                 ✎
@@ -246,26 +246,26 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
           {!showTesterSearch ? (
             <button
                 onClick={() => { setShowTesterSearch(true); handleUseLocation(); }}
-                className="w-full p-4 text-lg font-bold text-[#003366] bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full p-4 text-lg font-bold text-[#003366] dark:text-white bg-blue-50 dark:bg-gray-700 border border-blue-100 dark:border-gray-600 rounded-xl hover:bg-blue-100 dark:hover:bg-gray-600 transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2"
             >
                 <span>📍 FIND A TESTER</span>
             </button>
           ) : (
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 animate-in fade-in slide-in-from-top-2 shadow-inner text-left">
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-xl border border-gray-200 dark:border-gray-600 animate-in fade-in slide-in-from-top-2 shadow-inner text-left">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-black text-lg text-[#003366] uppercase tracking-wide">Find Tester</h3>
+                    <h3 className="font-black text-lg text-[#003366] dark:text-white uppercase tracking-wide">Find Tester</h3>
                     <button onClick={() => setShowTesterSearch(false)} className="text-gray-400 hover:text-red-500 font-bold px-2 active:scale-90 transition-transform">✕</button>
                 </div>
                 
                 <div className="relative mb-4">
-                    <div className="flex shadow-sm rounded-xl overflow-hidden border border-gray-300 bg-white">
+                    <div className="flex shadow-sm rounded-xl overflow-hidden border border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800">
                         <input 
                             type="tel" 
                             placeholder="Zip Code"
                             value={zipCode}
                             onChange={handleZipSearch}
                             maxLength={5}
-                            className="flex-1 p-4 text-center font-black text-2xl text-[#003366] placeholder:text-gray-300 focus:outline-none"
+                            className="flex-1 p-4 text-center font-black text-2xl text-[#003366] dark:text-white bg-transparent placeholder:text-gray-300 focus:outline-none"
                         />
                         <button 
                             onClick={handleUseLocation}
@@ -282,29 +282,29 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
                     </div>
                 </div>
 
-                <div className="bg-white border-l-4 border-[#15803d] rounded-r-xl p-4 mb-3 shadow-sm text-left">
+                <div className="bg-white dark:bg-gray-800 border-l-4 border-[#15803d] rounded-r-xl p-4 mb-3 shadow-sm text-left">
                     <div className="flex justify-between items-start mb-2">
                         <div>
                              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Recommended Partner</p>
-                             <h4 className="font-black text-lg text-[#003366] leading-tight mb-1">NORCAL CARB MOBILE</h4>
+                             <h4 className="font-black text-lg text-[#003366] dark:text-white leading-tight mb-1">NORCAL CARB MOBILE</h4>
                              <p className="text-xs font-bold text-[#15803d] mb-1 uppercase flex items-center gap-1">
                                 {coverageMessage}
                              </p>
                         </div>
                     </div>
                     
-                    <div className="space-y-2 text-sm text-gray-600 mb-4 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                    <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300 mb-4 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg border border-gray-100 dark:border-gray-600">
                         <div className="flex items-start gap-2">
                             <span className="text-lg">📍</span>
-                            <span><span className="font-bold text-[#003366]">Region:</span> {regionLabel}</span>
+                            <span><span className="font-bold text-[#003366] dark:text-white">Region:</span> {regionLabel}</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-lg">📞</span>
-                             <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="hover:text-[#15803d] hover:underline"><span className="font-bold text-[#003366]">Phone:</span> {dispatchPhone}</a>
+                             <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="hover:text-[#15803d] hover:underline"><span className="font-bold text-[#003366] dark:text-white">Phone:</span> {dispatchPhone}</a>
                         </div>
                          <div className="flex items-center gap-2">
                             <span className="text-lg">📧</span>
-                             <a href="mailto:bryan@norcalcarbmobile.com" className="hover:text-[#15803d] hover:underline"><span className="font-bold text-[#003366]">Email:</span> bryan@norcalcarbmobile.com</a>
+                             <a href="mailto:bryan@norcalcarbmobile.com" className="hover:text-[#15803d] hover:underline"><span className="font-bold text-[#003366] dark:text-white">Email:</span> bryan@norcalcarbmobile.com</a>
                         </div>
                     </div>
 
@@ -321,7 +321,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
              </p>
           </div>
 
-          <div className="border-t border-gray-100 my-4"></div>
+          <div className="border-t border-gray-100 dark:border-gray-700 my-4"></div>
 
         </div>
 
@@ -338,40 +338,40 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
       <div className="flex justify-center gap-6 mt-8 grayscale opacity-50">
            <div className="text-center">
                 <div className="text-2xl">🛡️</div>
-                <div className="text-[10px] font-bold mt-1">Secure</div>
+                <div className="text-[10px] font-bold mt-1 text-gray-600 dark:text-gray-400">Secure</div>
            </div>
            <div className="text-center">
                 <div className="text-2xl">⚡</div>
-                <div className="text-[10px] font-bold mt-1">Instant</div>
+                <div className="text-[10px] font-bold mt-1 text-gray-600 dark:text-gray-400">Instant</div>
            </div>
            <div className="text-center">
                 <div className="text-2xl">🤝</div>
-                <div className="text-[10px] font-bold mt-1">Trusted</div>
+                <div className="text-[10px] font-bold mt-1 text-gray-600 dark:text-gray-400">Trusted</div>
            </div>
       </div>
 
-      <div className="mt-8 w-full max-w-md bg-white/50 border border-white p-6 rounded-xl mb-6 backdrop-blur-sm">
-        <h3 className="font-bold text-[#003366] text-lg mb-4">Common Questions</h3>
-        <div className="space-y-3 divide-y divide-gray-200/50">
+      <div className="mt-8 w-full max-w-md bg-white/50 dark:bg-gray-800/50 border border-white dark:border-gray-700 p-6 rounded-xl mb-6 backdrop-blur-sm">
+        <h3 className="font-bold text-[#003366] dark:text-white text-lg mb-4">Common Questions</h3>
+        <div className="space-y-3 divide-y divide-gray-200/50 dark:divide-gray-700/50">
              
              {/* Dynamic Recent Questions */}
              {recentQuestions.map((q, idx) => (
                  <div key={`recent-${idx}`} className="group pt-2">
-                    <button onClick={() => handleAskQuestion(q)} className="w-full text-left cursor-pointer font-semibold text-[#15803d] text-sm flex justify-between items-center hover:bg-green-50 p-2 rounded">
+                    <button onClick={() => handleAskQuestion(q)} className="w-full text-left cursor-pointer font-semibold text-[#15803d] text-sm flex justify-between items-center hover:bg-green-50 dark:hover:bg-green-900/30 p-2 rounded">
                         <span>💬 {q}</span>
-                        <span className="text-xs bg-green-100 px-2 py-0.5 rounded-full text-green-700">ASK AGAIN</span>
+                        <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">ASK AGAIN</span>
                     </button>
                  </div>
              ))}
 
              <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] text-sm flex justify-between items-center">
+                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
                     Passed but Non-Compliant?
                     <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <div className="mt-2 text-xs text-gray-600">
+                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                     <p className="mb-1">Common causes: Entity setup, unpaid fees, missing vehicle upload, or OVI data entry errors (bad digit).</p>
-                    <p className="font-bold text-[#003366] mt-2">Ask an Expert:</p>
+                    <p className="font-bold text-[#003366] dark:text-white mt-2">Ask an Expert:</p>
                     <div className="flex flex-col gap-1 mt-1">
                         <a href="tel:6173596953" className="text-[#15803d] hover:underline font-bold">617-359-6953</a>
                         <a href="mailto:bryan@norcalcarbmobile.com" className="text-[#15803d] hover:underline">bryan@norcalcarbmobile.com</a>
@@ -379,39 +379,39 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
                 </div>
             </details>
             <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] text-sm flex justify-between items-center">
+                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
                     Results Missing?
                     <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="mt-2 text-xs text-gray-600">Takes 48 hours. If longer, call 617-359-6953.</p>
+                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Takes 48 hours. If longer, call 617-359-6953.</p>
             </details>
              <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] text-sm flex justify-between items-center">
+                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
                     Next Test Due?
                     <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="mt-2 text-xs text-gray-600">Linked to DMV registration. 2025 is 2x/year. 2027 is 4x/year.</p>
+                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Linked to DMV registration. 2025 is 2x/year. 2027 is 4x/year.</p>
             </details>
              <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] text-sm flex justify-between items-center">
+                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
                     Lost Password?
                     <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="mt-2 text-xs text-gray-600">Reset at <a href="https://cleantruckcheck.arb.ca.gov" target="_blank" className="underline text-[#003366]">cleantruckcheck.arb.ca.gov</a>.</p>
+                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Reset at <a href="https://cleantruckcheck.arb.ca.gov" target="_blank" className="underline text-[#003366] dark:text-white">cleantruckcheck.arb.ca.gov</a>.</p>
             </details>
             <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] text-sm flex justify-between items-center">
+                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
                     Scan didn't work?
                     <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="mt-2 text-xs text-gray-600">Try wiping the engine tag clean. If still failing, type the 17 characters manually.</p>
+                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Try wiping the engine tag clean. If still failing, type the 17 characters manually.</p>
             </details>
              <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] text-sm flex justify-between items-center">
+                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
                     What vehicles?
                     <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="mt-2 text-xs text-gray-600">Heavy Duty Diesel (&gt;14,000 lbs), Motorhomes, and Ag Equipment. NO GASOLINE CARS.</p>
+                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Heavy Duty Diesel (&gt;14,000 lbs), Motorhomes, and Ag Equipment. NO GASOLINE CARS.</p>
             </details>
         </div>
       </div>

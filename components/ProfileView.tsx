@@ -8,9 +8,11 @@ interface Props {
   onLogout: () => void;
   onAdminAccess?: () => void;
   isOnline?: boolean;
+  isDarkMode?: boolean;
+  toggleTheme?: () => void;
 }
 
-const ProfileView: React.FC<Props> = ({ user, onLogin, onRegister, onLogout, onAdminAccess, isOnline = true }) => {
+const ProfileView: React.FC<Props> = ({ user, onLogin, onRegister, onLogout, onAdminAccess, isOnline = true, isDarkMode, toggleTheme }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -88,24 +90,24 @@ const ProfileView: React.FC<Props> = ({ user, onLogin, onRegister, onLogout, onA
 
   if (!user) {
     return (
-      <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-2xl font-bold text-[#003366] mb-6 text-center">{isRegistering ? 'Create Account' : 'Welcome Back'}</h2>
+      <div className="max-w-md mx-auto mt-10 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+        <h2 className="text-2xl font-bold text-[#003366] dark:text-white mb-6 text-center">{isRegistering ? 'Create Account' : 'Welcome Back'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:border-[#003366] outline-none" placeholder="trucker@example.com" />
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:border-[#003366] outline-none dark:bg-gray-700 dark:text-white dark:border-gray-600" placeholder="trucker@example.com" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:border-[#003366] outline-none" placeholder="••••••••" />
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:border-[#003366] outline-none dark:bg-gray-700 dark:text-white dark:border-gray-600" placeholder="••••••••" />
           </div>
           <button type="submit" className="w-full bg-[#003366] text-white font-bold py-3 rounded-lg hover:bg-[#002244] transition-colors">{isRegistering ? 'Sign Up' : 'Log In'}</button>
         </form>
         <div className="mt-4 text-center">
           <button onClick={() => setIsRegistering(!isRegistering)} className="text-[#15803d] text-sm font-bold hover:underline">{isRegistering ? 'Already have an account? Log In' : 'Need an account? Sign Up'}</button>
         </div>
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-             <button onClick={handlePartnerAccess} className="text-xs text-gray-300 hover:text-gray-500">Partner Login</button>
+        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 text-center">
+             <button onClick={handlePartnerAccess} className="text-xs text-gray-300 hover:text-gray-500 font-bold uppercase tracking-wider">🔒 Admin Access (Partner Login)</button>
         </div>
       </div>
     );
@@ -113,39 +115,53 @@ const ProfileView: React.FC<Props> = ({ user, onLogin, onRegister, onLogout, onA
 
   return (
     <div className="max-w-2xl mx-auto pb-20">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 flex justify-between items-center">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 flex justify-between items-center transition-colors">
         <div>
-            <h2 className="text-xl font-bold text-[#003366]">{user.email}</h2>
-            <div className="mt-2 inline-block bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-1 rounded border border-gray-300">PLAN: FREE TIER</div>
+            <h2 className="text-xl font-bold text-[#003366] dark:text-white">{user.email}</h2>
+            <div className="mt-2 inline-block bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-[10px] font-bold px-2 py-1 rounded border border-gray-300 dark:border-gray-600">PLAN: FREE TIER</div>
         </div>
-        <button onClick={onLogout} className="text-red-500 text-sm font-bold border border-red-100 px-3 py-1 rounded hover:bg-red-50">Sign Out</button>
+        <button onClick={onLogout} className="text-red-500 text-sm font-bold border border-red-100 dark:border-red-900/30 px-3 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20">Sign Out</button>
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="flex items-center justify-between">
-            <div>
-                <h3 className="font-bold text-[#003366] text-lg">Alerts & Notifications</h3>
-                <p className="text-xs text-gray-500">Get notified about 2025 deadlines.</p>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 transition-colors">
+        <div className="flex items-center justify-between mb-4">
+             <h3 className="font-bold text-[#003366] dark:text-white text-lg">Settings</h3>
+        </div>
+        
+        <div className="space-y-4">
+             <div className="flex items-center justify-between">
+                <div>
+                    <h4 className="font-bold text-sm text-gray-700 dark:text-gray-200">Alerts & Notifications</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Get notified about 2025 deadlines.</p>
+                </div>
+                {notifPermission === 'granted' ? (
+                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">ACTIVE</span>
+                ) : (
+                    <button onClick={requestNotifications} className="bg-[#003366] text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-[#002244] transition-colors">🔔 ENABLE</button>
+                )}
             </div>
-            {notifPermission === 'granted' ? (
-                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">ACTIVE</span>
-            ) : (
+            
+            <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div>
+                    <h4 className="font-bold text-sm text-gray-700 dark:text-gray-200">Dark Mode</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Reduce eye strain at night.</p>
+                </div>
                 <button 
-                    onClick={requestNotifications}
-                    className="bg-[#003366] text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-[#002244] transition-colors"
+                    onClick={toggleTheme} 
+                    className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out ${isDarkMode ? 'bg-[#15803d]' : 'bg-gray-300'}`}
                 >
-                    🔔 ENABLE
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
                 </button>
-            )}
+            </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="font-bold text-[#003366]">History ({user.history.length})</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
+        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h3 className="font-bold text-[#003366] dark:text-white">History ({user.history.length})</h3>
             <div className="flex gap-2">
-                <input type="text" placeholder="Search VIN..." value={search} onChange={(e) => setSearch(e.target.value)} className="p-1 px-2 text-sm border rounded" />
-                <select value={sort} onChange={(e) => setSort(e.target.value as any)} className="p-1 px-2 text-sm border rounded">
+                <input type="text" placeholder="Search VIN..." value={search} onChange={(e) => setSearch(e.target.value)} className="p-1 px-2 text-sm border rounded dark:bg-gray-600 dark:text-white dark:border-gray-500" />
+                <select value={sort} onChange={(e) => setSort(e.target.value as any)} className="p-1 px-2 text-sm border rounded dark:bg-gray-600 dark:text-white dark:border-gray-500">
                     <option value="newest">Newest</option>
                     <option value="oldest">Oldest</option>
                     <option value="value">A-Z</option>
@@ -153,14 +169,14 @@ const ProfileView: React.FC<Props> = ({ user, onLogin, onRegister, onLogout, onA
             </div>
         </div>
         
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {filteredHistory.length === 0 ? (
                 <div className="p-8 text-center text-gray-400">No history found.</div>
             ) : (
                 filteredHistory.map((item: HistoryItem) => (
-                    <div key={item.id} className="p-4 hover:bg-gray-50 flex justify-between items-center">
+                    <div key={item.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center transition-colors">
                         <div>
-                            <div className="font-mono font-bold text-[#003366] text-lg tracking-wider">{item.value}</div>
+                            <div className="font-mono font-bold text-[#003366] dark:text-white text-lg tracking-wider">{item.value}</div>
                             <div className="text-xs text-gray-400 flex gap-2 items-center mb-2">
                                 <span className={`px-1.5 rounded text-[10px] font-bold ${item.type === 'VIN' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>{item.type}</span>
                                 {new Date(item.timestamp).toLocaleDateString()}
@@ -170,12 +186,18 @@ const ProfileView: React.FC<Props> = ({ user, onLogin, onRegister, onLogout, onA
                         {isOnline ? (
                             <a href={`https://cleantruckcheck.arb.ca.gov/Fleet/Vehicle/VehicleComplianceStatusLookup?${item.type === 'VIN' ? 'vin' : 'entity'}=${item.value}`} target="_blank" rel="noreferrer" className="text-[#15803d] font-bold text-sm border border-[#15803d] px-3 py-1 rounded hover:bg-[#15803d] hover:text-white transition-colors">CHECK</a>
                         ) : (
-                             <span className="text-gray-400 text-xs font-bold border border-gray-200 px-3 py-1 rounded bg-gray-50">OFFLINE</span>
+                             <span className="text-gray-400 text-xs font-bold border border-gray-200 dark:border-gray-600 px-3 py-1 rounded bg-gray-50 dark:bg-gray-700">OFFLINE</span>
                         )}
                     </div>
                 ))
             )}
         </div>
+      </div>
+      
+      <div className="mt-8 text-center">
+         <button onClick={handlePartnerAccess} className="text-xs text-gray-400 hover:text-[#15803d] font-bold uppercase tracking-wider p-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg w-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            🔑 ADMIN ACCESS (PARTNER LOGIN)
+         </button>
       </div>
     </div>
   );

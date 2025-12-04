@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { scoutTruckLead, parseRegistrationPhoto, SYSTEM_INSTRUCTION } from '../services/geminiService';
 import { Lead, RegistrationData } from '../types';
 
 const AdminView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'SCOUT' | 'LEADS' | 'REG OCR' | 'FINANCIALS' | 'ALERTS' | 'BRAIN'>('SCOUT');
+  const [activeTab, setActiveTab] = useState<'SCOUT' | 'LEADS' | 'REG OCR' | 'FINANCIALS' | 'ALERTS' | 'BRAIN' | 'INVITE'>('INVITE');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [scouting, setScouting] = useState(false);
   const [currentLead, setCurrentLead] = useState<Lead | null>(null);
@@ -15,6 +15,16 @@ const AdminView: React.FC = () => {
   // OCR Registration State
   const [processingReg, setProcessingReg] = useState(false);
   const [regData, setRegData] = useState<RegistrationData | null>(null);
+
+  // Invite Customer State
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [prevCustomers, setPrevCustomers] = useState<Array<{name: string, phone: string, date: string}>>([]);
+
+  useEffect(() => {
+      const stored = localStorage.getItem('vin_diesel_customers');
+      if (stored) setPrevCustomers(JSON.parse(stored));
+  }, []);
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -64,8 +74,6 @@ const AdminView: React.FC = () => {
   const handleBroadcast = async () => {
       if (!alertMessage) return;
       
-      // Since this is a client-side demo without a real push server,
-      // we simulate the push notification locally for demonstration.
       if ('serviceWorker' in navigator && 'Notification' in window) {
           const reg = await navigator.serviceWorker.ready;
           reg.showNotification('CARB Compliance Alert', {
@@ -78,6 +86,26 @@ const AdminView: React.FC = () => {
       } else {
           alert("Service Worker not supported.");
       }
+  };
+  
+  const handleInvite = () => {
+      if (!customerName || !customerPhone) return alert("Enter name and phone");
+      
+      const message = `Hi ${customerName}, here is the Mobile Carb Check app to scan your VINs and check compliance instantly: https://carbcleantruckcheck.app`;
+      const encoded = encodeURIComponent(message);
+      
+      // Save customer
+      const newCustomer = { name: customerName, phone: customerPhone, date: new Date().toLocaleDateString() };
+      const updated = [newCustomer, ...prevCustomers];
+      setPrevCustomers(updated);
+      localStorage.setItem('vin_diesel_customers', JSON.stringify(updated));
+      
+      // Clear form
+      setCustomerName('');
+      setCustomerPhone('');
+      
+      // Open SMS
+      window.location.href = `sms:${customerPhone}?body=${encoded}`;
   };
 
   const projections = [
@@ -92,6 +120,15 @@ const AdminView: React.FC = () => {
       alert(`Syncing ${lead.companyName} to Zapier Webhook... \n(Simulation: Data sent to Google Sheets/CRM)`);
   };
 
+  const TabButton = ({ id, label, icon }: { id: any, label: string, icon: string }) => (
+      <button 
+        className={`flex-1 p-3 font-bold text-sm whitespace-nowrap border-b-4 transition-colors ${activeTab === id ? 'text-[#003366] border-[#00A651] bg-white' : 'text-gray-400 border-transparent hover:bg-gray-50'}`} 
+        onClick={() => setActiveTab(id)}
+      >
+          {icon} {label}
+      </button>
+  );
+
   return (
     <div className="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-lg border border-[#003366] overflow-hidden mb-20 min-h-[80vh]">
         <div className="bg-[#003366] text-white p-4 flex justify-between items-center">
@@ -99,22 +136,75 @@ const AdminView: React.FC = () => {
                 <h2 className="font-bold text-xl tracking-widest">NORCAL SCOUT ADMIN</h2>
                 <div className="flex items-center gap-2 mt-1">
                      <div className="w-2 h-2 bg-[#00A651] rounded-full animate-pulse"></div>
-                     <span className="text-[10px] font-mono text-gray-300">SYSTEM READY FOR DEPLOYMENT v1.0</span>
+                     <span className="text-[10px] font-mono text-gray-300">SYSTEM READY v1.0</span>
                 </div>
             </div>
             <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">INTERNAL 1225</span>
         </div>
 
         <div className="flex border-b border-gray-200 bg-gray-50 overflow-x-auto">
-            <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'SCOUT' ? 'text-[#003366] border-b-4 border-[#00A651] bg-white' : 'text-gray-400'}`} onClick={() => setActiveTab('SCOUT')}>📷 SCOUT</button>
-            <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'REG OCR' ? 'text-[#003366] border-b-4 border-[#00A651] bg-white' : 'text-gray-400'}`} onClick={() => setActiveTab('REG OCR')}>📄 REG OCR</button>
-            <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'LEADS' ? 'text-[#003366] border-b-4 border-[#00A651] bg-white' : 'text-gray-400'}`} onClick={() => setActiveTab('LEADS')}>📋 LEADS</button>
-            <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'BRAIN' ? 'text-[#003366] border-b-4 border-[#00A651] bg-white' : 'text-gray-400'}`} onClick={() => setActiveTab('BRAIN')}>🧠 AI BRAIN</button>
-            <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'FINANCIALS' ? 'text-[#003366] border-b-4 border-[#00A651] bg-white' : 'text-gray-400'}`} onClick={() => setActiveTab('FINANCIALS')}>💰 EMPIRE</button>
-            <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'ALERTS' ? 'text-[#003366] border-b-4 border-[#00A651] bg-white' : 'text-gray-400'}`} onClick={() => setActiveTab('ALERTS')}>📢 ALERTS</button>
+            <TabButton id="INVITE" label="INVITE" icon="✉️" />
+            <TabButton id="SCOUT" label="SCOUT" icon="📷" />
+            <TabButton id="REG OCR" label="OCR" icon="📄" />
+            <TabButton id="LEADS" label="LEADS" icon="📋" />
+            <TabButton id="BRAIN" label="BRAIN" icon="🧠" />
+            <TabButton id="FINANCIALS" label="EMPIRE" icon="💰" />
+            <TabButton id="ALERTS" label="ALERTS" icon="📢" />
         </div>
 
         <div className="p-4">
+            {activeTab === 'INVITE' && (
+                <div className="space-y-8">
+                    <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+                        <h3 className="text-xl font-bold text-[#003366] mb-4">Invite New Customer</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Customer Name</label>
+                                <input 
+                                    type="text" 
+                                    value={customerName} 
+                                    onChange={e => setCustomerName(e.target.value)} 
+                                    placeholder="e.g. John Smith"
+                                    className="w-full p-3 border border-gray-300 rounded-lg"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
+                                <input 
+                                    type="tel" 
+                                    value={customerPhone} 
+                                    onChange={e => setCustomerPhone(e.target.value)} 
+                                    placeholder="e.g. 555-123-4567"
+                                    className="w-full p-3 border border-gray-300 rounded-lg"
+                                />
+                            </div>
+                            <button onClick={handleInvite} className="w-full py-4 bg-[#003366] text-white font-bold rounded-xl hover:bg-[#002244] shadow-lg flex items-center justify-center gap-2">
+                                <span>📱 SEND APP VIA TEXT</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 className="text-lg font-bold text-[#003366] mb-3">Previous Customers ({prevCustomers.length})</h3>
+                        <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-200">
+                            {prevCustomers.length === 0 && <p className="p-4 text-center text-gray-400">No customers invited yet.</p>}
+                            {prevCustomers.map((c, i) => (
+                                <div key={i} className="p-4 flex justify-between items-center bg-white">
+                                    <div>
+                                        <p className="font-bold text-[#003366]">{c.name}</p>
+                                        <p className="text-xs text-gray-500">{c.date}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <a href={`tel:${c.phone}`} className="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200">📞</a>
+                                        <a href={`sms:${c.phone}`} className="p-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">💬</a>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'SCOUT' && (
                 <div className="text-center py-10 space-y-6">
                     <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto flex items-center justify-center border-4 border-[#003366]">
@@ -237,11 +327,6 @@ const AdminView: React.FC = () => {
                         <div className="absolute top-8 right-4 bg-black/50 text-white text-[10px] px-2 py-1 rounded">
                             CODE: services/geminiService.ts
                         </div>
-                    </div>
-                    
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-[#003366]">
-                        <strong>Want to change an answer?</strong><br/>
-                        Copy the text above, edit it to how you want it, and send it to your developer.
                     </div>
                 </div>
             )}

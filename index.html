@@ -11,7 +11,6 @@
   <meta name="keywords" content="CARB Compliance, Clean Truck Check, Heavy Duty Diesel, Smoke Test, VIN Check, PSIP, OVI Test, OBD Testing, California Trucking, No Gasoline, Diesel Only, Sacramento, Los Angeles, San Diego, Fresno, Bakersfield, Oakland, Redding, Mobile Diesel Mechanic">
   
   <!-- Open Graph / Facebook / iMessage Sharing -->
-  <!-- NOTE: Social Media requires an absolute URL to a PNG/JPG. You must upload logo.png to your server. -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://carbcleantruckcheck.app/">
   <meta property="og:title" content="Mobile Carb Check">
@@ -34,8 +33,21 @@
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="apple-touch-icon" href="/logo.svg">
   
-  <!-- Tailwind CSS via CDN for simplicity in this setup -->
+  <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            navy: '#003366',
+            green: '#15803d',
+          }
+        }
+      }
+    }
+  </script>
   
   <style>
     :root {
@@ -47,7 +59,7 @@
       background-color: #f8f9fa;
       color: #003366;
     }
-    /* Custom scrollbar for Webkit */
+    /* Custom scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;

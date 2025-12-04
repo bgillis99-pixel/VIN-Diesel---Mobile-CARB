@@ -74,23 +74,23 @@ const MediaTools: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-20">
-      <div className="flex border-b border-gray-200">
-        <button className={`flex-1 p-4 font-bold text-sm ${activeTab === 'analyze' ? 'text-[#003366] border-b-4 border-[#15803d]' : 'text-gray-400'}`} onClick={() => setActiveTab('analyze')}>Analyze</button>
-        <button className={`flex-1 p-4 font-bold text-sm ${activeTab === 'generate' ? 'text-[#003366] border-b-4 border-[#15803d]' : 'text-gray-400'}`} onClick={() => setActiveTab('generate')}>Generate</button>
-        <button className={`flex-1 p-4 font-bold text-sm ${activeTab === 'audio' ? 'text-[#003366] border-b-4 border-[#15803d]' : 'text-gray-400'}`} onClick={() => setActiveTab('audio')}>Audio</button>
+    <div className="w-full max-w-md mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden mb-20 transition-colors">
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <button className={`flex-1 p-4 font-bold text-sm ${activeTab === 'analyze' ? 'text-[#003366] dark:text-white border-b-4 border-[#15803d]' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`} onClick={() => setActiveTab('analyze')}>Analyze</button>
+        <button className={`flex-1 p-4 font-bold text-sm ${activeTab === 'generate' ? 'text-[#003366] dark:text-white border-b-4 border-[#15803d]' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`} onClick={() => setActiveTab('generate')}>Generate</button>
+        <button className={`flex-1 p-4 font-bold text-sm ${activeTab === 'audio' ? 'text-[#003366] dark:text-white border-b-4 border-[#15803d]' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`} onClick={() => setActiveTab('audio')}>Audio</button>
       </div>
 
       <div className="p-6">
         {activeTab === 'analyze' && (
             <div className="space-y-4">
-                <h3 className="text-[#003366] font-bold text-lg">Visual Inspection</h3>
-                <p className="text-sm text-gray-500">Upload photos of Engine Tags, Smoke Tests, or Trucks.</p>
+                <h3 className="text-[#003366] dark:text-white font-bold text-lg">Visual Inspection</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Upload photos of Engine Tags, Smoke Tests, or Trucks.</p>
                 <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
-                    <button onClick={() => setAnalysisPrompt("Check this Engine Control Label for legibility and family name.")} className="text-xs bg-gray-100 p-2 rounded border hover:bg-gray-200 whitespace-nowrap">Engine Tag</button>
-                    <button onClick={() => setAnalysisPrompt("Analyze smoke opacity from this tailpipe.")} className="text-xs bg-gray-100 p-2 rounded border hover:bg-gray-200 whitespace-nowrap">Smoke</button>
+                    <button onClick={() => setAnalysisPrompt("Check this Engine Control Label for legibility and family name.")} className="text-xs bg-gray-100 dark:bg-gray-700 dark:text-white p-2 rounded border dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 whitespace-nowrap">Engine Tag</button>
+                    <button onClick={() => setAnalysisPrompt("Analyze smoke opacity from this tailpipe.")} className="text-xs bg-gray-100 dark:bg-gray-700 dark:text-white p-2 rounded border dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 whitespace-nowrap">Smoke</button>
                 </div>
-                <textarea rows={3} value={analysisPrompt} onChange={(e) => setAnalysisPrompt(e.target.value)} className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-[#003366] outline-none text-sm" />
+                <textarea rows={3} value={analysisPrompt} onChange={(e) => setAnalysisPrompt(e.target.value)} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-[#003366] outline-none text-sm dark:bg-gray-700 dark:text-white" />
                 <label className="block w-full p-4 bg-[#003366] text-white text-center rounded-xl cursor-pointer font-bold hover:bg-[#002244]">
                     📷 Upload Photo/Video
                     <input type="file" accept="image/*,video/*" className="hidden" onChange={handleAnalyze} />
@@ -100,13 +100,13 @@ const MediaTools: React.FC = () => {
 
         {activeTab === 'generate' && (
             <div className="space-y-4">
-                <h3 className="text-[#003366] font-bold text-lg">Image Generation</h3>
-                <textarea rows={3} value={genPrompt} onChange={(e) => setGenPrompt(e.target.value)} className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-[#003366] outline-none text-sm" placeholder="Describe the image..." />
+                <h3 className="text-[#003366] dark:text-white font-bold text-lg">Image Generation</h3>
+                <textarea rows={3} value={genPrompt} onChange={(e) => setGenPrompt(e.target.value)} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-[#003366] outline-none text-sm dark:bg-gray-700 dark:text-white" placeholder="Describe the image..." />
                 <div className="flex gap-2">
-                     <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="flex-1 p-2 border rounded-lg">
+                     <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="flex-1 p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
                         {ASPECT_RATIOS.map(r => <option key={r} value={r}>{r}</option>)}
                      </select>
-                     <select value={size} onChange={(e) => setSize(e.target.value)} className="flex-1 p-2 border rounded-lg">
+                     <select value={size} onChange={(e) => setSize(e.target.value)} className="flex-1 p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
                         {IMAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                      </select>
                 </div>
@@ -118,13 +118,13 @@ const MediaTools: React.FC = () => {
         {activeTab === 'audio' && (
             <div className="space-y-6">
                 <div>
-                    <h3 className="text-[#003366] font-bold text-lg mb-2">Text to Speech</h3>
-                    <textarea rows={2} value={ttsText} onChange={(e) => setTtsText(e.target.value)} className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-[#003366] outline-none text-sm mb-2" />
+                    <h3 className="text-[#003366] dark:text-white font-bold text-lg mb-2">Text to Speech</h3>
+                    <textarea rows={2} value={ttsText} onChange={(e) => setTtsText(e.target.value)} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-[#003366] outline-none text-sm mb-2 dark:bg-gray-700 dark:text-white" />
                     <button onClick={handleTTS} className="w-full p-3 bg-[#003366] text-white rounded-xl font-bold hover:bg-[#002244]">🔊 Speak</button>
                 </div>
-                <div className="border-t pt-4">
-                    <h3 className="text-[#003366] font-bold text-lg mb-2">Transcribe Audio</h3>
-                     <label className="block w-full p-4 bg-gray-100 text-[#003366] text-center rounded-xl cursor-pointer font-bold border-2 border-dashed border-[#003366] hover:bg-gray-200">
+                <div className="border-t dark:border-gray-700 pt-4">
+                    <h3 className="text-[#003366] dark:text-white font-bold text-lg mb-2">Transcribe Audio</h3>
+                     <label className="block w-full p-4 bg-gray-100 dark:bg-gray-700 text-[#003366] dark:text-white text-center rounded-xl cursor-pointer font-bold border-2 border-dashed border-[#003366] dark:border-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600">
                         🎙️ Upload Audio
                         <input type="file" accept="audio/*" className="hidden" onChange={handleTranscribe} />
                     </label>
@@ -132,8 +132,8 @@ const MediaTools: React.FC = () => {
             </div>
         )}
 
-        {loading && <div className="mt-4 p-4 bg-gray-50 text-[#15803d] text-center rounded-xl animate-pulse font-bold">Processing...</div>}
-        {result && <div className="mt-4 p-4 bg-gray-50 text-[#003366] rounded-xl border border-gray-200 whitespace-pre-wrap text-sm">{result}</div>}
+        {loading && <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 text-[#15803d] dark:text-green-400 text-center rounded-xl animate-pulse font-bold">Processing...</div>}
+        {result && <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 text-[#003366] dark:text-white rounded-xl border border-gray-200 dark:border-gray-600 whitespace-pre-wrap text-sm">{result}</div>}
       </div>
     </div>
   );
