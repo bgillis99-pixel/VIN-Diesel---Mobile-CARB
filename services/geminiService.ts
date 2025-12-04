@@ -2,8 +2,10 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { MODEL_NAMES } from "../constants";
 import { Lead, ImageGenerationConfig, AnalysisType, RegistrationData } from "../types";
 
-// This will be replaced by Vercel environment variable
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Fallback Key from Deployment Manual for immediate functionality if Env Var fails
+const API_KEY = process.env.API_KEY || 'AIzaSyBIVTK3aqKBA9JwtXBeGbpWEgMy4tPXmtk';
+
+const getAI = () => new GoogleGenAI({ apiKey: API_KEY });
 
 export const SYSTEM_INSTRUCTION = `
 You are VIN DIESEL, a specialized AI Compliance Officer for the **California Clean Truck Check - Heavy-Duty Inspection and Maintenance (HD I/M) Program**.
