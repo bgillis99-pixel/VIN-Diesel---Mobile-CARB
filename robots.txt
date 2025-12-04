@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Sitemap: https://carbcleantruckcheck.app/sitemap.xml
+
+# Optimization for AI Bots
+User-agent: GPTBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /

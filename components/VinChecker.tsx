@@ -64,23 +64,9 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
       setZipCode(val);
       if (val.length >= 3) {
           const prefix = parseInt(val.substring(0, 3));
-          
-          // REGION 1: CENTRAL VALLEY / 209 & 559 AREA CODES -> 209-818-1371
-          // 936-938 (Fresno/Madera/Visalia - 559)
-          // 952-953 (Stockton/Modesto - 209)
+          // Simplified logic for demo
           const isCentralValley = (prefix >= 936 && prefix <= 938) || (prefix >= 952 && prefix <= 953);
-
-          // REGION 2: SACRAMENTO / NORTHERN INLAND (916/530) -> 916-890-4427
-          // 956-958 (Sacramento)
-          // 959 (Butte/Yuba)
-          // 960 (Redding/Shasta)
-          // 961 (Tahoe/Plumas/Sierra)
           const isSacramentoNorth = (prefix >= 956 && prefix <= 961);
-
-          // REGION 3: COASTAL / BAY AREA -> 415-900-8563
-          // 939 (Monterey)
-          // 940-951 (Bay Area, includes 925 zips inside 945 prefix, and 948 Richmond)
-          // 954-955 (Sonoma/Mendo/Humboldt)
           const isCoastal = prefix === 939 || (prefix >= 940 && prefix <= 951) || prefix === 954 || prefix === 955;
 
           if (isCentralValley) {
@@ -96,7 +82,6 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
               setCoverageMessage("✅ Local Coastal/Bay Area Dispatch");
               setRegionLabel("Monterey • Bay Area • North Coast");
           } else {
-              // Default / SoCal / Catch-all -> 617-359-6953
               setDispatchPhone('617-359-6953');
               setCoverageMessage("✅ Dispatch Available (Statewide)");
               setRegionLabel("Southern California / Statewide");
@@ -114,7 +99,6 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
 
   const handleUseLocation = () => {
       setLocating(true);
-      
       const timeoutId = setTimeout(() => {
           setLocating(false);
           alert("Location request timed out. Please enter Zip Code manually.");
@@ -123,14 +107,12 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
       navigator.geolocation.getCurrentPosition((pos) => {
           clearTimeout(timeoutId);
           const lat = pos.coords.latitude;
-          let detectedZip = '';
-          // Rough approximation for demo purposes to trigger regions
-          if (lat > 39.0) detectedZip = '96001'; // Redding (Sacramento/North - 916)
-          else if (lat > 38.0) detectedZip = '95814'; // Sacramento (Sacramento/North - 916)
-          else if (lat > 37.5) detectedZip = '94103'; // SF (Coastal - 415)
-          else if (lat > 36.5) detectedZip = '93901'; // Monterey (Coastal - 415)
-          else if (lat > 36.0) detectedZip = '93721'; // Fresno (Central Valley - 209)
-          else detectedZip = '90012'; // LA (Default - 617)
+          let detectedZip = '90012'; // Default
+          if (lat > 39.0) detectedZip = '96001';
+          else if (lat > 38.0) detectedZip = '95814';
+          else if (lat > 37.5) detectedZip = '94103';
+          else if (lat > 36.5) detectedZip = '93901';
+          else if (lat > 36.0) detectedZip = '93721';
 
           updateCoverage(detectedZip);
           setLocating(false);
@@ -142,28 +124,22 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
 
   const checkCompliance = () => {
     const val = inputVal.trim().toUpperCase();
-    
     if (!val) {
       alert('Enter or scan VIN/Entity/TRUCRS');
       return;
     }
+    if (val.includes('O')) return alert("⚠️ Invalid character: Letter 'O' is not allowed. Use Number '0'.");
+    if (val.includes('I')) return alert("⚠️ Invalid character: Letter 'I' is not allowed. Use Number '1'.");
+    if (val.includes('Q')) return alert("⚠️ Invalid character: Letter 'Q' is not allowed.");
 
-    // 1. Check for illegal characters I, O, Q
-    if (val.includes('O')) return alert("⚠️ Invalid character: Letter 'O' (Oh) is not allowed. Use Number '0' (Zero).");
-    if (val.includes('I')) return alert("⚠️ Invalid character: Letter 'I' (Eye) is not allowed. Use Number '1' (One).");
-    if (val.includes('Q')) return alert("⚠️ Invalid character: Letter 'Q' is not allowed in VINs.");
-
-    // 2. VIN Length and Specific Rules
     if (val.length === 17) {
-        // Enforce 8th character is numeric (CARB/Diesel specific check)
         const eighthChar = val.charAt(7);
         if (!/^\d$/.test(eighthChar)) {
-             alert(`⚠️ CARB Validation Error:\nThe 8th character ('${eighthChar}') must be a number.\n\nThis is often the Engine Code for diesel compliance. Please verify your VIN.`);
+             alert(`⚠️ CARB Validation Error:\nThe 8th character ('${eighthChar}') must be a number.`);
              return;
         }
     } else if (val.length > 10 && val.length !== 17) {
-         // If it's not a TRUCRS ID (usually 9 digits) and not 17 chars, warn user.
-         alert(`⚠️ VIN Length Alert: Detected ${val.length} characters.\n\nA valid VIN must be exactly 17 characters.`);
+         alert(`⚠️ VIN Length Alert: Detected ${val.length} characters.\nA valid VIN must be 17 characters.`);
          return;
     }
 
@@ -176,42 +152,43 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
     }
     
     onAddToHistory(val, isVin ? 'VIN' : isEntity ? 'ENTITY' : 'TRUCRS');
-    
     const param = isVin ? 'vin' : isEntity ? 'entity' : 'trucrs';
     window.open(`https://cleantruckcheck.arb.ca.gov/Fleet/Vehicle/VehicleComplianceStatusLookup?${param}=${val}`, '_blank');
   };
 
   return (
-    <div className="flex flex-col items-center w-full pb-10">
+    <div className="flex flex-col items-center w-full">
       
-      <div className="w-full bg-gradient-to-b from-[#003366] to-[#f8f9fa] dark:to-gray-900 pb-12 pt-6 px-4 rounded-b-[3rem] shadow-sm mb-[-40px]">
-        <div className="max-w-md mx-auto text-center text-white">
-            <h2 className="text-xl font-light opacity-90 tracking-wide mb-1">CALIFORNIA STATEWIDE</h2>
-            <p className="text-3xl font-black tracking-tight mb-6">Compliance Status & Mobile Testing</p>
-            
-            <button onClick={onInstallApp} className="bg-[#15803d] text-white px-6 py-2 rounded-full font-bold text-sm shadow-lg hover:bg-[#166534] active:scale-95 transition-all inline-flex items-center gap-2 mb-4">
-                <span>⬇️ INSTALL APP</span>
+      {/* Compact Header for minimal dead space */}
+      <div className="w-full bg-[#003366] dark:bg-gray-900 pb-8 pt-4 px-4 rounded-b-3xl shadow-md mb-[-25px] transition-colors">
+        <div className="max-w-md mx-auto flex justify-between items-center text-white">
+            <div>
+                <h2 className="text-xl font-black tracking-tight leading-none">Compliance Status</h2>
+                <p className="text-xs opacity-80 mt-1">Scan VIN or Enter ID</p>
+            </div>
+            <button onClick={onInstallApp} className="bg-[#15803d] text-white px-3 py-1.5 rounded-full font-bold text-xs shadow-lg hover:bg-[#166534] active:scale-95 transition-all flex items-center gap-1">
+                <span>⬇️ APP</span>
             </button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[24px] shadow-[0_20px_40px_rgba(0,51,102,0.15)] border border-gray-100 dark:border-gray-700 w-full max-w-md text-center relative overflow-hidden z-10">
+      <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 w-full max-w-md text-center relative overflow-hidden z-10">
         
         {loading && (
           <div className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 flex items-center justify-center z-20 backdrop-blur-sm">
             <div className="text-center">
-                <div className="w-12 h-12 border-4 border-[#15803d] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <div className="text-[#003366] dark:text-white font-bold animate-pulse">Analyzing VIN...</div>
+                <div className="w-10 h-10 border-4 border-[#15803d] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <div className="text-[#003366] dark:text-white font-bold animate-pulse text-sm">Analyzing...</div>
             </div>
           </div>
         )}
 
         <button 
             onClick={() => fileInputRef.current?.click()}
-            className="w-full mb-6 py-5 bg-gradient-to-r from-[#003366] to-[#002244] text-white rounded-2xl font-bold text-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all group"
+            className="w-full mb-4 py-4 bg-gradient-to-r from-[#003366] to-[#002244] text-white rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-[0.98] transition-all group"
         >
-            <div className="bg-white/10 p-2 rounded-full group-hover:bg-white/20 transition-colors">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <div className="bg-white/10 p-1.5 rounded-full group-hover:bg-white/20 transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </div>
             SCAN VIN TAG
         </button>
@@ -223,196 +200,96 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
             onChange={(e) => setInputVal(e.target.value.toUpperCase())}
             placeholder="VIN • Entity • TRUCRS"
             maxLength={17}
-            className="w-full p-4 text-2xl font-black text-center border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:border-[#15803d] focus:ring-4 focus:ring-green-50 transition-all font-mono uppercase tracking-widest text-[#003366] placeholder:text-gray-300 placeholder:text-lg placeholder:font-sans placeholder:font-normal"
+            className="w-full p-3 text-xl font-black text-center border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:border-[#15803d] focus:ring-2 focus:ring-green-100 transition-all font-mono uppercase tracking-widest text-[#003366] placeholder:text-gray-300 placeholder:font-sans placeholder:font-normal"
             />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none">
-                ✎
-            </div>
         </div>
         
-        <p className="text-[10px] text-gray-400 mb-6 px-2 text-center leading-tight">
-            <span className="font-bold">⚠️ Tip:</span> Wipe dirt off engine tag before scanning.
+        <p className="text-[10px] text-gray-400 mb-4 text-center">
+            <span className="font-bold">Tip:</span> Wipe engine tag clean before scanning.
         </p>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <button
             onClick={checkCompliance}
-            className="w-full p-4 text-lg font-bold text-white bg-[#15803d] rounded-xl hover:bg-[#166534] transition-all shadow-md active:scale-[0.98] flex justify-center items-center gap-2"
+            className="w-full p-3 text-base font-bold text-white bg-[#15803d] rounded-xl hover:bg-[#166534] transition-all shadow-md active:scale-[0.98] flex justify-center items-center gap-2"
           >
             CHECK STATUS
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
           </button>
 
           {!showTesterSearch ? (
             <button
                 onClick={() => { setShowTesterSearch(true); handleUseLocation(); }}
-                className="w-full p-4 text-lg font-bold text-[#003366] dark:text-white bg-blue-50 dark:bg-gray-700 border border-blue-100 dark:border-gray-600 rounded-xl hover:bg-blue-100 dark:hover:bg-gray-600 transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full p-3 text-base font-bold text-[#003366] dark:text-white bg-blue-50 dark:bg-gray-700 border border-blue-100 dark:border-gray-600 rounded-xl hover:bg-blue-100 dark:hover:bg-gray-600 transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2"
             >
-                <span>📍 FIND A TESTER</span>
+                <span>📍 FIND TESTER</span>
             </button>
           ) : (
-            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-xl border border-gray-200 dark:border-gray-600 animate-in fade-in slide-in-from-top-2 shadow-inner text-left">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-black text-lg text-[#003366] dark:text-white uppercase tracking-wide">Find Tester</h3>
-                    <button onClick={() => setShowTesterSearch(false)} className="text-gray-400 hover:text-red-500 font-bold px-2 active:scale-90 transition-transform">✕</button>
+            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-xl border border-gray-200 dark:border-gray-600 animate-in fade-in slide-in-from-top-2 shadow-inner text-left">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-black text-sm text-[#003366] dark:text-white uppercase">Find Mobile Tester</h3>
+                    <button onClick={() => setShowTesterSearch(false)} className="text-gray-400 hover:text-red-500 font-bold px-2">✕</button>
                 </div>
                 
-                <div className="relative mb-4">
-                    <div className="flex shadow-sm rounded-xl overflow-hidden border border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800">
-                        <input 
-                            type="tel" 
-                            placeholder="Zip Code"
-                            value={zipCode}
-                            onChange={handleZipSearch}
-                            maxLength={5}
-                            className="flex-1 p-4 text-center font-black text-2xl text-[#003366] dark:text-white bg-transparent placeholder:text-gray-300 focus:outline-none"
-                        />
-                        <button 
-                            onClick={handleUseLocation}
-                            disabled={locating}
-                            className="px-6 bg-[#15803d] text-white font-bold flex items-center justify-center hover:bg-[#166534] transition-colors active:bg-[#14532d]"
-                            title="Use My Location"
-                        >
-                            {locating ? (
-                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                            )}
-                        </button>
-                    </div>
+                <div className="flex shadow-sm rounded-lg overflow-hidden border border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800 mb-3">
+                    <input 
+                        type="tel" 
+                        placeholder="Zip"
+                        value={zipCode}
+                        onChange={handleZipSearch}
+                        maxLength={5}
+                        className="flex-1 p-2 text-center font-bold text-lg text-[#003366] dark:text-white bg-transparent outline-none w-16"
+                    />
+                    <button 
+                        onClick={handleUseLocation}
+                        disabled={locating}
+                        className="px-4 bg-[#15803d] text-white flex items-center justify-center"
+                    >
+                        {locating ? <span className="animate-spin">⌛</span> : <span>📍</span>}
+                    </button>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 border-l-4 border-[#15803d] rounded-r-xl p-4 mb-3 shadow-sm text-left">
-                    <div className="flex justify-between items-start mb-2">
-                        <div>
-                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Recommended Partner</p>
-                             <h4 className="font-black text-lg text-[#003366] dark:text-white leading-tight mb-1">NORCAL CARB MOBILE</h4>
-                             <p className="text-xs font-bold text-[#15803d] mb-1 uppercase flex items-center gap-1">
-                                {coverageMessage}
-                             </p>
-                        </div>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300 mb-4 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg border border-gray-100 dark:border-gray-600">
-                        <div className="flex items-start gap-2">
-                            <span className="text-lg">📍</span>
-                            <span><span className="font-bold text-[#003366] dark:text-white">Region:</span> {regionLabel}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">📞</span>
-                             <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="hover:text-[#15803d] hover:underline"><span className="font-bold text-[#003366] dark:text-white">Phone:</span> {dispatchPhone}</a>
-                        </div>
-                         <div className="flex items-center gap-2">
-                            <span className="text-lg">📧</span>
-                             <a href="mailto:bryan@norcalcarbmobile.com" className="hover:text-[#15803d] hover:underline"><span className="font-bold text-[#003366] dark:text-white">Email:</span> bryan@norcalcarbmobile.com</a>
-                        </div>
-                    </div>
-
-                    <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="block w-full text-center bg-[#003366] text-white font-bold py-3 rounded-lg hover:bg-[#002244] mb-2 text-lg active:scale-[0.98] transition-transform shadow-md">
-                        CALL NOW
+                <div className="bg-white dark:bg-gray-800 border-l-4 border-[#15803d] rounded-r-lg p-3 shadow-sm">
+                    <h4 className="font-black text-sm text-[#003366] dark:text-white mb-1">NORCAL CARB MOBILE</h4>
+                    <p className="text-[10px] font-bold text-[#15803d] uppercase mb-2">{coverageMessage}</p>
+                    <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="block w-full text-center bg-[#003366] text-white font-bold py-2 rounded-lg text-sm shadow-md">
+                        CALL {dispatchPhone}
                     </a>
                 </div>
             </div>
           )}
 
-          <div className="py-2">
-             <p className="text-xs text-gray-400">
-                Need help? <span className="font-bold text-[#15803d] cursor-pointer hover:underline" onClick={onNavigateChat}>Ask AI Assistant &rarr;</span>
+          <div className="py-1 text-center">
+             <p className="text-[10px] text-gray-400">
+                Questions? <span className="font-bold text-[#15803d] cursor-pointer hover:underline" onClick={onNavigateChat}>Ask AI &rarr;</span>
              </p>
           </div>
-
-          <div className="border-t border-gray-100 dark:border-gray-700 my-4"></div>
-
         </div>
 
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleScan}
-        />
+        <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
       </div>
       
-      <div className="flex justify-center gap-6 mt-8 grayscale opacity-50">
-           <div className="text-center">
-                <div className="text-2xl">🛡️</div>
-                <div className="text-[10px] font-bold mt-1 text-gray-600 dark:text-gray-400">Secure</div>
-           </div>
-           <div className="text-center">
-                <div className="text-2xl">⚡</div>
-                <div className="text-[10px] font-bold mt-1 text-gray-600 dark:text-gray-400">Instant</div>
-           </div>
-           <div className="text-center">
-                <div className="text-2xl">🤝</div>
-                <div className="text-[10px] font-bold mt-1 text-gray-600 dark:text-gray-400">Trusted</div>
-           </div>
-      </div>
-
-      <div className="mt-8 w-full max-w-md bg-white/50 dark:bg-gray-800/50 border border-white dark:border-gray-700 p-6 rounded-xl mb-6 backdrop-blur-sm">
-        <h3 className="font-bold text-[#003366] dark:text-white text-lg mb-4">Common Questions</h3>
-        <div className="space-y-3 divide-y divide-gray-200/50 dark:divide-gray-700/50">
-             
-             {/* Dynamic Recent Questions */}
+      <div className="mt-6 w-full max-w-md">
+        <h3 className="font-bold text-[#003366] dark:text-white text-sm mb-2 ml-1">Common Questions</h3>
+        <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl border border-white dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
              {recentQuestions.map((q, idx) => (
-                 <div key={`recent-${idx}`} className="group pt-2">
-                    <button onClick={() => handleAskQuestion(q)} className="w-full text-left cursor-pointer font-semibold text-[#15803d] text-sm flex justify-between items-center hover:bg-green-50 dark:hover:bg-green-900/30 p-2 rounded">
-                        <span>💬 {q}</span>
-                        <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">ASK AGAIN</span>
-                    </button>
-                 </div>
+                 <button key={idx} onClick={() => handleAskQuestion(q)} className="w-full text-left p-3 text-xs font-semibold text-[#15803d] flex justify-between items-center hover:bg-white dark:hover:bg-gray-700 first:rounded-t-xl last:rounded-b-xl">
+                    <span>💬 {q}</span>
+                    <span className="opacity-50">→</span>
+                 </button>
              ))}
-
-             <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
-                    Passed but Non-Compliant?
-                    <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                    <p className="mb-1">Common causes: Entity setup, unpaid fees, missing vehicle upload, or OVI data entry errors (bad digit).</p>
-                    <p className="font-bold text-[#003366] dark:text-white mt-2">Ask an Expert:</p>
-                    <div className="flex flex-col gap-1 mt-1">
-                        <a href="tel:6173596953" className="text-[#15803d] hover:underline font-bold">617-359-6953</a>
-                        <a href="mailto:bryan@norcalcarbmobile.com" className="text-[#15803d] hover:underline">bryan@norcalcarbmobile.com</a>
-                    </div>
-                </div>
-            </details>
-            <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
-                    Results Missing?
-                    <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Takes 48 hours. If longer, call 617-359-6953.</p>
-            </details>
-             <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
-                    Next Test Due?
-                    <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Linked to DMV registration. 2025 is 2x/year. 2027 is 4x/year.</p>
-            </details>
-             <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
-                    Lost Password?
-                    <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Reset at <a href="https://cleantruckcheck.arb.ca.gov" target="_blank" className="underline text-[#003366] dark:text-white">cleantruckcheck.arb.ca.gov</a>.</p>
-            </details>
-            <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
-                    Scan didn't work?
-                    <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Try wiping the engine tag clean. If still failing, type the 17 characters manually.</p>
-            </details>
-             <details className="group pt-2">
-                <summary className="cursor-pointer font-semibold text-[#003366] dark:text-white text-sm flex justify-between items-center">
-                    What vehicles?
-                    <span className="text-[#15803d] group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Heavy Duty Diesel (&gt;14,000 lbs), Motorhomes, and Ag Equipment. NO GASOLINE CARS.</p>
-            </details>
+             <button onClick={() => handleAskQuestion('Why is my registration blocked?')} className="w-full text-left p-3 text-xs font-semibold text-[#003366] dark:text-white flex justify-between items-center hover:bg-white dark:hover:bg-gray-700 rounded-t-xl">
+                <span>🚫 Registration Blocked?</span>
+                <span className="text-gray-400">+</span>
+             </button>
+             <button onClick={() => handleAskQuestion('When is my next test due?')} className="w-full text-left p-3 text-xs font-semibold text-[#003366] dark:text-white flex justify-between items-center hover:bg-white dark:hover:bg-gray-700">
+                <span>📅 Next Test Deadline?</span>
+                <span className="text-gray-400">+</span>
+             </button>
+             <button onClick={() => handleAskQuestion('I lost my password')} className="w-full text-left p-3 text-xs font-semibold text-[#003366] dark:text-white flex justify-between items-center hover:bg-white dark:hover:bg-gray-700 rounded-b-xl">
+                <span>🔑 Lost Password?</span>
+                <span className="text-gray-400">+</span>
+             </button>
         </div>
       </div>
     </div>

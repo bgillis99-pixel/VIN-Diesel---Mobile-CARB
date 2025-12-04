@@ -2,38 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#003366">
   
-  <title>Mobile Carb Check</title>
+  <title>Mobile Carb Check - Instant Compliance & Testing</title>
 
-  <meta name="description" content="California's Premier Mobile CARB Compliance App. Instant VIN Checks & Smoke Testing. Heavy Duty Diesel >14k lbs, Motorhomes, Ag Equip Only. NO GASOLINE CARS.">
-  <meta name="keywords" content="CARB Compliance, Clean Truck Check, Heavy Duty Diesel, Smoke Test, VIN Check, PSIP, OVI Test, OBD Testing, California Trucking, No Gasoline, Diesel Only, Sacramento, Los Angeles, San Diego, Fresno, Bakersfield, Oakland, Redding, Mobile Diesel Mechanic">
+  <meta name="description" content="California's #1 Clean Truck Check App. Instant VIN Compliance Scan, Find Certified Smoke Testers, and AI Regulatory Help. Heavy Duty Diesel Only.">
+  <meta name="keywords" content="CARB Compliance, Clean Truck Check, Heavy Duty Diesel, Smoke Test, VIN Check, PSIP, OVI Test, OBD Testing, California Trucking, Mobile Diesel Mechanic">
   
-  <!-- Open Graph / Facebook / iMessage Sharing -->
+  <!-- Social Media & AI Preview Tags -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://carbcleantruckcheck.app/">
-  <meta property="og:title" content="Mobile Carb Check">
-  <meta property="og:description" content="Pocket CARB Assistant. Check VIN Compliance instantly. Request Mobile Smoke/OBD Testing anywhere in California.">
+  <meta property="og:title" content="Mobile Carb Check - Instant Status">
+  <meta property="og:description" content="Scan VINs instantly. Find local smoke testers. 24/7 AI Compliance Officer.">
   <meta property="og:image" content="https://carbcleantruckcheck.app/logo.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="NorCal CARB Mobile">
 
-  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="https://carbcleantruckcheck.app/">
   <meta name="twitter:title" content="Mobile Carb Check">
-  <meta name="twitter:description" content="Pocket CARB Assistant. Check VIN Compliance instantly. Request Mobile Smoke/OBD Testing anywhere in California.">
+  <meta name="twitter:description" content="Scan VINs instantly. Find local smoke testers. 24/7 AI Compliance Officer.">
   <meta name="twitter:image" content="https://carbcleantruckcheck.app/logo.png">
   
   <link rel="canonical" href="https://carbcleantruckcheck.app" />
   
-  <!-- PWA Manifest & Icons -->
+  <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="apple-touch-icon" href="/logo.svg">
   
-  <!-- Tailwind CSS via CDN -->
+  <!-- Styles -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -43,6 +42,9 @@
           colors: {
             navy: '#003366',
             green: '#15803d',
+          },
+          screens: {
+            'standalone': { 'raw': '(display-mode: standalone)' }
           }
         }
       }
@@ -55,25 +57,21 @@
       --navy: #003366;
     }
     body {
-      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background-color: #f8f9fa;
       color: #003366;
+      -webkit-tap-highlight-color: transparent;
     }
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f1f1;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: var(--green);
-      border-radius: 3px;
-    }
+    /* Safe Area for iPhone X+ */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    .pt-safe { padding-top: env(safe-area-inset-top); }
+    
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
   </style>
   
-  <!-- Google Structured Data -->
+  <!-- AI Search Bot Optimization: FAQ Schema -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -83,23 +81,46 @@
         "name": "Mobile Carb Check",
         "operatingSystem": "iOS, Android, Web",
         "applicationCategory": "BusinessApplication",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "description": "Mobile application for checking CARB compliance status (VIN, TRUCRS) and locating certified smoke testers in California."
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "description": "Mobile application for checking CARB compliance status and locating certified smoke testers."
       },
       {
-        "@type": "ProfessionalService",
-        "name": "Mobile Carb Check",
-        "telephone": "844-685-8922",
+        "@type": "LocalBusiness",
+        "name": "NorCal CARB Mobile",
+        "telephone": "617-359-6953",
         "email": "bryan@norcalcarbmobile.com",
         "url": "https://carbcleantruckcheck.app",
-        "areaServed": {
-          "@type": "State",
-          "name": "California"
-        }
+        "areaServed": { "@type": "State", "name": "California" },
+        "priceRange": "$$"
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How often do I need a CARB Clean Truck Check test?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "For 2025 and 2026, most heavy-duty diesel vehicles need to pass a test twice a year (every 6 months), linked to your DMV registration date. Starting in 2027, this increases to 4 times a year."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why is my DMV registration blocked by CARB?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Registration is commonly blocked for two reasons: 1. The $30 annual compliance fee hasn't been paid. 2. A passing smoke/OBD test hasn't been submitted within 90 days of your registration date."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does this apply to pickup trucks?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The Clean Truck Check program applies to diesel vehicles over 14,000 lbs GVWR. Most standard pickup trucks (F-250, 2500) are under this weight and are subject to BAR smog checks, not CARB HD I/M."
+            }
+          }
+        ]
       }
     ]
   }
@@ -108,13 +129,7 @@
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then(registration => {
-          console.log('SW registered: ', registration);
-        })
-        .catch(registrationError => {
-          console.log('SW registration failed: ', registrationError);
-        });
+      navigator.serviceWorker.register('/sw.js');
     });
   }
 </script>
