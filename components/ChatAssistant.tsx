@@ -2,8 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { sendMessage } from '../services/geminiService';
 import { Message } from '../types';
 
+interface ExtendedMessage extends Message {
+  isOffline?: boolean;
+}
+
 const ChatAssistant: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ExtendedMessage[]>([
     { id: 'init', role: 'model', text: 'Hello! I am VIN DIESEL AI. Ask me about CARB regulations, find testers near you, or clarify complex compliance rules.', timestamp: Date.now() }
   ]);
   const [input, setInput] = useState('');
@@ -49,7 +53,7 @@ const ChatAssistant: React.FC = () => {
         saveRecentQuestion(textToSend);
     }
 
-    const userMsg: Message = { 
+    const userMsg: ExtendedMessage = { 
         id: Date.now().toString(), 
         role: 'user', 
         text: imageFile ? `[Uploaded Image: ${imageFile.name}] ${textToSend || 'Analyze this image.'}` : textToSend, 
@@ -76,7 +80,7 @@ const ChatAssistant: React.FC = () => {
         .filter(m => m.id !== 'init')
         .map(m => ({ role: m.role, parts: [{ text: m.text }] }));
 
-      const response = await sendMessage(
+      const response: any = await sendMessage(
           imageFile ? (textToSend || "Analyze this image.") : textToSend, 
           'standard', 
           history, 
@@ -84,32 +88,23 @@ const ChatAssistant: React.FC = () => {
           imageData
       );
 
-      const botMsg: Message = {
+      const botMsg: ExtendedMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',
         text: response.text,
         timestamp: Date.now(),
-        groundingUrls: response.groundingUrls
+        groundingUrls: response.groundingUrls,
+        isOffline: response.isOffline
       };
       setMessages(prev => [...prev, botMsg]);
     } catch (error: any) {
       console.error(error);
-      const errorMsg = error.message || "Unknown error";
+      const contactInfo = "\n\n📞 **IMMEDIATE SUPPORT:**\nText/Call: 617-359-6953";
       
-      // ERROR HANDLING WITH CONTACT INFO
-      const contactInfo = "\n\n📞 **IMMEDIATE SUPPORT:**\nText/Call: 617-359-6953\nEmail: bryan@norcalcarbmobile.com";
-      let friendlyError = "⚠️ Connection Error. We are currently offline." + contactInfo;
-      
-      if (errorMsg.includes("403") || errorMsg.includes("API key")) {
-          friendlyError = "⚠️ API Configuration Error." + contactInfo;
-      } else if (errorMsg.includes("429") || errorMsg.includes("quota")) {
-          friendlyError = "⚠️ System Busy (Quota)." + contactInfo;
-      }
-
       setMessages(prev => [...prev, { 
           id: Date.now().toString(), 
           role: 'model', 
-          text: friendlyError, 
+          text: "⚠️ Connection Failed. " + contactInfo, 
           timestamp: Date.now() 
       }]);
     } finally {
@@ -266,15 +261,26 @@ const ChatAssistant: React.FC = () => {
                 : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-[#003366] dark:text-white rounded-bl-none'
             }`}>
               <div className="whitespace-pre-wrap">{msg.text}</div>
+              
+              {/* Sources Display */}
               {msg.groundingUrls && msg.groundingUrls.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-600 text-xs">
-                  <p className="font-bold mb-1 text-gray-500 dark:text-gray-400">Sources:</p>
+                  <p className="font-bold mb-1 text-gray-700 dark:text-gray-400">Sources:</p>
                   {msg.groundingUrls.map((url, idx) => (
                     <a key={idx} href={url.uri} target="_blank" rel="noopener noreferrer" className="block text-[#15803d] hover:underline truncate mb-1">
                       {url.title || url.uri}
                     </a>
                   ))}
                 </div>
+              )}
+
+              {/* Offline Indicator */}
+              {msg.isOffline && (
+                  <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-600">
+                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200">
+                         📡 Offline Mode
+                     </span>
+                  </div>
               )}
             </div>
           </div>

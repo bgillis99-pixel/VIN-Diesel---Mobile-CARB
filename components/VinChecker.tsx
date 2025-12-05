@@ -11,26 +11,21 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
   const [showTesterSearch, setShowTesterSearch] = useState(false);
+  
+  // VIN Confirmation State
+  const [scanResult, setScanResult] = useState<{vin: string, details: string} | null>(null);
+  const [editedVin, setEditedVin] = useState('');
+
+  // Tester Search State
   const [zipCode, setZipCode] = useState('');
   const [coverageMessage, setCoverageMessage] = useState('Enter Zip for Local Dispatch');
   const [dispatchPhone, setDispatchPhone] = useState('617-359-6953');
   const [regionLabel, setRegionLabel] = useState('Statewide Network');
+  const [estimatedPrice, setEstimatedPrice] = useState('Enter Zip for Estimate');
+  const [reviewSnippet, setReviewSnippet] = useState('“Reliable and fast service.”');
   const [locating, setLocating] = useState(false);
   
-  const [recentQuestions, setRecentQuestions] = useState<string[]>([]);
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-      try {
-          const stored = localStorage.getItem('vin_diesel_recent_questions');
-          if (stored) {
-              setRecentQuestions(JSON.parse(stored));
-          }
-      } catch (e) {
-          console.warn("Could not load recent questions");
-      }
-  }, []);
 
   const handleAskQuestion = (question: string) => {
       sessionStorage.setItem('pending_chat_query', question);
@@ -42,21 +37,17 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
     if (!file) return;
 
     setLoading(true);
+    setScanResult(null);
     try {
-      const vin = await extractVinFromImage(file);
+      const result = await extractVinFromImage(file);
       
-      const cleaned = vin.replace(/[^A-Z0-9]/gi, '');
-      setInputVal(cleaned);
-      
-      if (cleaned.length !== 17) {
-          alert(`Scanning Warning: Found ${cleaned.length} characters. VINs are usually 17. Please verify manually.`);
+      if (result.vin && result.vin.length > 10) {
+          setScanResult({ vin: result.vin, details: result.description });
+          setEditedVin(result.vin);
+          if (navigator.vibrate) navigator.vibrate(50);
+      } else {
+          alert('Could not find a clear VIN. Please try again or type manually.');
       }
-      
-      if (cleaned.includes('I') || cleaned.includes('O') || cleaned.includes('Q')) {
-           if (navigator.vibrate) navigator.vibrate(200);
-           alert("SCANNER WARNING: Illegal characters (I, O, Q) detected. Please verify VIN manually.");
-      }
-
     } catch (err) {
       alert('Failed to extract VIN. Please ensure label is clean and lit, or type manually.');
     } finally {
@@ -65,37 +56,71 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
     }
   };
 
+  const confirmVin = () => {
+      const cleaned = editedVin.trim().toUpperCase().replace(/[^A-Z0-9]/gi, '');
+      setInputVal(cleaned);
+      setScanResult(null);
+  };
+
   const updateCoverage = (val: string) => {
       setZipCode(val);
+      
+      // Default / Fallback
+      let phone = '617-359-6953';
+      let msg = 'Statewide Dispatch Available';
+      let region = 'California Statewide';
+      let price = 'Contact for Quote';
+      let review = '“Saved us from a DMV registration block last minute.” — Mike T., Owner-Operator';
+
       if (val.length >= 3) {
           const prefix = parseInt(val.substring(0, 3));
-          // Simplified logic for demo
+          
+          // Central Valley (Local)
           const isCentralValley = (prefix >= 936 && prefix <= 938) || (prefix >= 952 && prefix <= 953);
+          // Sac
           const isSacramentoNorth = (prefix >= 956 && prefix <= 961);
+          // Bay
           const isCoastal = prefix === 939 || (prefix >= 940 && prefix <= 951) || prefix === 954 || prefix === 955;
+          // Socal
+          const isSocal = (prefix >= 900 && prefix <= 935);
 
           if (isCentralValley) {
-              setDispatchPhone('209-818-1371');
-              setCoverageMessage("✅ Local Central Valley Dispatch");
-              setRegionLabel("Stockton • Fresno • Modesto");
+              phone = '209-818-1371';
+              msg = "✅ Local Central Valley Dispatch";
+              region = "Stockton • Fresno • Modesto";
+              price = "$150 - $199 (Local Rate)";
+              review = "“Showed up in 45 mins to our yard in Stockton. Super pro service.” — J.R. Logistics";
           } else if (isSacramentoNorth) {
-              setDispatchPhone('916-890-4427');
-              setCoverageMessage("✅ Local Northern Inland Dispatch");
-              setRegionLabel("Sacramento • Redding • Tahoe");
+              phone = '916-890-4427';
+              msg = "✅ Local Northern Inland Dispatch";
+              region = "Sacramento • Redding • Tahoe";
+              price = "$175 - $225";
+              review = "“Helped us clear a citation in Sacramento. Knows the rules better than CARB.” — Big Rigs Inc.";
           } else if (isCoastal) {
-              setDispatchPhone('415-900-8563');
-              setCoverageMessage("✅ Local Coastal/Bay Area Dispatch");
-              setRegionLabel("Monterey • Bay Area • North Coast");
-          } else {
-              setDispatchPhone('617-359-6953');
-              setCoverageMessage("✅ Dispatch Available (Statewide)");
-              setRegionLabel("Southern California / Statewide");
+              phone = '415-900-8563';
+              msg = "✅ Local Coastal/Bay Area Dispatch";
+              region = "Monterey • Bay Area • North Coast";
+              price = "$200 - $275 (Bridge/Travel Included)";
+              review = "“Expensive toll fees included in price, but worth it for the convenience.” — Bay Area Transport";
+          } else if (isSocal) {
+              phone = '617-359-6953';
+              msg = "✅ Southern California Dispatch";
+              region = "LA • San Diego • Inland Empire";
+              price = "$250 - $300 (Travel Rate)";
+              review = "“They coordinate multiple trucks to lower the travel cost. Call them.” — SoCal Fleet Services";
           }
       } else {
-          setDispatchPhone('617-359-6953');
-          setCoverageMessage("Enter Zip for Local Dispatch");
-          setRegionLabel("Statewide Network");
+          msg = "Enter Zip for Local Dispatch";
+          region = "Statewide Network";
+          price = "Enter Zip for Estimate";
+          review = "“5-Star Service across California”";
       }
+
+      setDispatchPhone(phone);
+      setCoverageMessage(msg);
+      setRegionLabel(region);
+      setEstimatedPrice(price);
+      setReviewSnippet(review);
   };
 
   const handleZipSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,13 +131,12 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
       setLocating(true);
       const timeoutId = setTimeout(() => {
           setLocating(false);
-          alert("Location request timed out. Please enter Zip Code manually.");
       }, 5000);
 
       navigator.geolocation.getCurrentPosition((pos) => {
           clearTimeout(timeoutId);
           const lat = pos.coords.latitude;
-          let detectedZip = '90012'; // Default
+          let detectedZip = '90012'; // Default fallback
           if (lat > 39.0) detectedZip = '96001';
           else if (lat > 38.0) detectedZip = '95814';
           else if (lat > 37.5) detectedZip = '94103';
@@ -124,6 +148,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
       }, (err) => {
           clearTimeout(timeoutId);
           setLocating(false);
+          alert("Could not detect location. Please enter Zip manually.");
       });
   };
 
@@ -133,6 +158,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
       alert('Enter or scan VIN/Entity/TRUCRS');
       return;
     }
+    // Basic validations
     if (val.includes('O')) return alert("⚠️ Invalid character: Letter 'O' is not allowed. Use Number '0'.");
     if (val.includes('I')) return alert("⚠️ Invalid character: Letter 'I' is not allowed. Use Number '1'.");
     if (val.includes('Q')) return alert("⚠️ Invalid character: Letter 'Q' is not allowed.");
@@ -161,142 +187,250 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onInstall
     window.open(`https://cleantruckcheck.arb.ca.gov/Fleet/Vehicle/VehicleComplianceStatusLookup?${param}=${val}`, '_blank');
   };
 
-  return (
-    <div className="flex flex-col items-center w-full">
-      
-      {/* Compact Header for minimal dead space */}
-      <div className="w-full bg-[#003366] dark:bg-gray-900 pb-8 pt-4 px-4 rounded-b-3xl shadow-md mb-[-25px] transition-colors">
-        <div className="max-w-md mx-auto flex justify-between items-center text-white">
-            <div>
-                <h2 className="text-xl font-black tracking-tight leading-none">Compliance Status</h2>
-                <p className="text-xs opacity-80 mt-1">Scan VINs or Enter ID</p>
-            </div>
-            <button onClick={onInstallApp} className="bg-[#15803d] text-white px-3 py-1.5 rounded-full font-bold text-xs shadow-lg hover:bg-[#166534] active:scale-95 transition-all flex items-center gap-1">
-                <span>⬇️ APP</span>
-            </button>
-        </div>
-      </div>
+  // --- FULL PAGE TESTER SEARCH VIEW ---
+  if (showTesterSearch) {
+      return (
+          <div className="fixed inset-0 z-50 bg-[#f8f9fa] dark:bg-gray-900 overflow-y-auto animate-in fade-in slide-in-from-right duration-300">
+              {/* Header */}
+              <div className="bg-[#003366] dark:bg-gray-900 text-white p-4 shadow-md sticky top-0 z-20">
+                  <div className="max-w-md mx-auto flex flex-col">
+                      <button onClick={() => setShowTesterSearch(false)} className="self-start flex items-center gap-2 font-bold text-sm hover:text-green-400 transition-colors mb-4">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                          BACK TO HOME
+                      </button>
+                      <h2 className="text-3xl font-black">Find Certified Tester</h2>
+                      <p className="text-sm opacity-80 mt-1">Locate Mobile Opacity & OBD Testers</p>
+                  </div>
+              </div>
 
-      <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 w-full max-w-md text-center relative overflow-hidden z-10">
-        
-        {loading && (
-          <div className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 flex items-center justify-center z-20 backdrop-blur-sm">
-            <div className="text-center">
-                <div className="w-10 h-10 border-4 border-[#15803d] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <div className="text-[#003366] dark:text-white font-bold animate-pulse text-sm">Scanning Label...</div>
-            </div>
+              <div className="p-4 space-y-6 max-w-md mx-auto pb-24">
+                  {/* Search Bar */}
+                  <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                      <label className="block text-xs font-bold text-gray-700 uppercase mb-3">Search by Location</label>
+                      <div className="flex gap-3">
+                          <input 
+                              type="tel" 
+                              placeholder="Enter Zip Code" 
+                              value={zipCode} 
+                              onChange={handleZipSearch}
+                              className="flex-1 p-4 text-xl font-bold border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-[#003366] outline-none dark:bg-gray-700 dark:text-white"
+                              maxLength={5}
+                          />
+                          <button 
+                              onClick={handleUseLocation}
+                              disabled={locating}
+                              className="bg-[#003366] text-white px-6 rounded-xl font-bold flex items-center justify-center disabled:opacity-50"
+                          >
+                              {locating ? <span className="animate-spin text-xl">⌛</span> : <span className="text-xl">📍</span>}
+                          </button>
+                      </div>
+                  </div>
+
+                  {/* Results Card */}
+                  <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border-2 border-[#15803d] overflow-hidden relative transform transition-all">
+                      <div className="bg-[#15803d] text-white text-xs font-bold px-4 py-2 absolute top-0 right-0 rounded-bl-2xl">
+                          RECOMMENDED
+                      </div>
+                      
+                      <div className="p-6">
+                          <div className="flex items-start justify-between mb-6">
+                              <div>
+                                  <h3 className="text-2xl font-black text-[#003366] dark:text-white leading-tight">NorCal CARB Mobile</h3>
+                                  <p className="text-sm font-bold text-gray-700 dark:text-gray-400 mt-1">{regionLabel}</p>
+                                  <div className="flex items-center gap-1 mt-2">
+                                      <span className="text-yellow-400 text-lg">★★★★★</span>
+                                      <span className="text-xs text-blue-600 font-bold underline cursor-pointer">4.9 (124 Google Reviews)</span>
+                                  </div>
+                              </div>
+                              <img src="https://api.qrserver.com/v1/create-qr-code/?size=64x64&data=Norcal&color=003366" className="w-16 h-16 rounded-xl opacity-90" alt="Logo" />
+                          </div>
+
+                          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-2xl mb-6 border border-gray-100 dark:border-gray-600">
+                              <p className="text-[10px] font-bold text-gray-600 uppercase mb-1">Estimated Pricing</p>
+                              <p className="text-2xl font-black text-[#15803d] dark:text-green-400">{estimatedPrice}</p>
+                              <p className="text-[10px] text-gray-600 italic mt-1">*Includes travel & certificate fees</p>
+                          </div>
+
+                          <div className="mb-6 relative">
+                              <span className="absolute -top-3 -left-1 text-4xl text-gray-200">“</span>
+                              <p className="text-sm italic text-gray-600 dark:text-gray-300 pl-6 relative z-10 leading-relaxed">
+                                  {reviewSnippet}
+                              </p>
+                          </div>
+
+                          <div className="flex flex-col gap-3">
+                              <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="w-full py-4 bg-[#003366] text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-[#002244] transition-colors">
+                                  <span>📞 CALL DISPATCH</span>
+                              </a>
+                              <div className="flex gap-3">
+                                  <a href={`sms:${dispatchPhone.replace(/-/g, '')}?body=Need Smoke Test`} className="flex-1 py-3 bg-white border-2 border-[#003366] text-[#003366] font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50">
+                                      <span>💬 TEXT</span>
+                                  </a>
+                                  <a href="mailto:bryan@norcalcarbmobile.com?subject=Smoke Test Request" className="flex-1 py-3 bg-white border-2 border-[#003366] text-[#003366] font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50">
+                                      <span>✉️ EMAIL</span>
+                                  </a>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 border-t border-gray-100 dark:border-gray-700">
+                          <p className="text-[10px] font-bold text-gray-600 uppercase mb-2">Services Provided</p>
+                          <div className="flex flex-wrap gap-2">
+                              {['SAE J1667 Smoke', 'OBD Testing', 'PSIP Annual', 'Opacity Test', 'Mobile Service'].map(tag => (
+                                  <span key={tag} className="text-[10px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 px-2 py-1 rounded text-gray-600 dark:text-gray-300 font-bold">
+                                      {tag}
+                                  </span>
+                              ))}
+                          </div>
+                      </div>
+                  </div>
+              </div>
           </div>
-        )}
+      );
+  }
 
-        <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full mb-4 py-4 bg-gradient-to-r from-[#003366] to-[#002244] text-white rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-[0.98] transition-all group"
-        >
-            <div className="bg-white/10 p-1.5 rounded-full group-hover:bg-white/20 transition-colors">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            </div>
-            SCAN VIN TAG / BARCODE
-        </button>
-
-        <div className="relative mb-2 group">
-            <input
-            type="text"
-            value={inputVal}
-            onChange={(e) => setInputVal(e.target.value.toUpperCase())}
-            placeholder="VIN • Entity • TRUCRS"
-            maxLength={17}
-            className="w-full p-3 text-xl font-black text-center border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:border-[#15803d] focus:ring-2 focus:ring-green-100 transition-all font-mono uppercase tracking-widest text-[#003366] placeholder:text-gray-300 placeholder:font-sans placeholder:font-normal"
-            />
+  // --- MAIN SCANNER VIEW ---
+  return (
+    <div className="w-full max-w-md mx-auto space-y-6">
+      
+      {/* Scanner Card */}
+      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700 relative">
+        <div className="bg-[#003366] p-2 text-center">
+            <p className="text-[10px] text-white font-bold tracking-widest opacity-80">CALIFORNIA CLEAN TRUCK CHECK</p>
         </div>
         
-        <p className="text-[10px] text-gray-400 mb-4 text-center">
-            <span className="font-bold">Tip:</span> If scan fails, type manually or wipe label clean.
-        </p>
-
-        <div className="space-y-2">
-          <button
-            onClick={checkCompliance}
-            className="w-full p-3 text-base font-bold text-white bg-[#15803d] rounded-xl hover:bg-[#166534] transition-all shadow-md active:scale-[0.98] flex justify-center items-center gap-2"
-          >
-            CHECK STATUS
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
-          </button>
-
-          {!showTesterSearch ? (
-            <button
-                onClick={() => { setShowTesterSearch(true); handleUseLocation(); }}
-                className="w-full p-3 text-base font-bold text-[#003366] dark:text-white bg-blue-50 dark:bg-gray-700 border border-blue-100 dark:border-gray-600 rounded-xl hover:bg-blue-100 dark:hover:bg-gray-600 transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2"
+        <div className="p-6">
+            <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                className="w-full bg-[#003366] text-white py-5 rounded-2xl shadow-lg hover:bg-[#002244] active:scale-95 transition-all group relative overflow-hidden mb-6"
             >
-                <span>📍 FIND TESTER</span>
-            </button>
-          ) : (
-            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-xl border border-gray-200 dark:border-gray-600 animate-in fade-in slide-in-from-top-2 shadow-inner text-left">
-                <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-black text-sm text-[#003366] dark:text-white uppercase">Find Mobile Tester</h3>
-                    <button onClick={() => setShowTesterSearch(false)} className="text-gray-400 hover:text-red-500 font-bold px-2">✕</button>
+                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                <div className="flex flex-col items-center justify-center gap-1">
+                    <span className="text-2xl">📸</span> 
+                    <span className="font-black text-lg tracking-wide">{loading ? 'ANALYZING...' : 'SCAN VIN TAG / BARCODE'}</span>
                 </div>
+            </button>
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleScan} 
+                accept="image/*" 
+                capture="environment"
+                className="hidden" 
+            />
+
+            <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                    <span className="px-2 bg-white dark:bg-gray-800 text-gray-400 font-bold">OR ENTER MANUALLY</span>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <input
+                    type="text"
+                    value={inputVal}
+                    onChange={(e) => setInputVal(e.target.value.toUpperCase())}
+                    placeholder="VIN, Entity ID, or TRUCRS ID"
+                    className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border-2 border-gray-200 dark:border-gray-600 rounded-xl text-center font-mono text-lg font-bold placeholder:font-sans placeholder:text-sm focus:border-[#003366] outline-none"
+                    maxLength={17}
+                />
+                <p className="text-[10px] text-gray-600 text-center">
+                   Tip: If scan fails, type manually or wipe label clean.
+                </p>
+
+                <button 
+                    onClick={checkCompliance}
+                    className="w-full bg-[#15803d] text-white py-4 rounded-xl font-bold shadow-md hover:bg-[#166534] active:scale-95 transition-transform flex items-center justify-center gap-2"
+                >
+                    CHECK STATUS <span className="text-xl">›</span>
+                </button>
                 
-                <div className="flex shadow-sm rounded-lg overflow-hidden border border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800 mb-3">
-                    <input 
-                        type="tel" 
-                        placeholder="Zip"
-                        value={zipCode}
-                        onChange={handleZipSearch}
-                        maxLength={5}
-                        className="flex-1 p-2 text-center font-bold text-lg text-[#003366] dark:text-white bg-transparent outline-none w-16"
-                    />
-                    <button 
-                        onClick={handleUseLocation}
-                        disabled={locating}
-                        className="px-4 bg-[#15803d] text-white flex items-center justify-center"
-                    >
-                        {locating ? <span className="animate-spin">⌛</span> : <span>📍</span>}
+                <button 
+                    onClick={() => setShowTesterSearch(true)}
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-[#003366] dark:text-white py-3 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                >
+                    <span>📍</span> FIND TESTER
+                </button>
+                
+                <div className="text-center">
+                    <button onClick={() => handleAskQuestion('How do I fix a blocked registration?')} className="text-xs font-bold text-gray-600 hover:text-[#003366] flex items-center justify-center gap-1 mx-auto">
+                        Questions? <span className="text-[#15803d]">Ask AI ➜</span>
                     </button>
                 </div>
-
-                <div className="bg-white dark:bg-gray-800 border-l-4 border-[#15803d] rounded-r-lg p-3 shadow-sm">
-                    <h4 className="font-black text-sm text-[#003366] dark:text-white mb-1">NORCAL CARB MOBILE</h4>
-                    <p className="text-[10px] font-bold text-[#15803d] uppercase mb-2">{coverageMessage}</p>
-                    <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="block w-full text-center bg-[#003366] text-white font-bold py-2 rounded-lg text-sm shadow-md">
-                        CALL {dispatchPhone}
-                    </a>
-                </div>
             </div>
-          )}
+        </div>
+      </div>
 
-          <div className="py-1 text-center">
-             <p className="text-[10px] text-gray-400">
-                Questions? <span className="font-bold text-[#15803d] cursor-pointer hover:underline" onClick={onNavigateChat}>Ask AI &rarr;</span>
-             </p>
+      {/* Common Questions Section */}
+      <div className="px-2">
+          <h3 className="text-[#003366] dark:text-white font-bold text-sm mb-3 ml-2">Common Questions</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
+              <button onClick={() => handleAskQuestion('Why is my registration blocked?')} className="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700 group transition-colors">
+                  <div className="flex items-center gap-3">
+                      <span className="text-lg bg-red-50 text-red-500 p-1.5 rounded-lg">🚫</span>
+                      <span className="font-bold text-sm text-gray-700 dark:text-gray-200">Registration Blocked?</span>
+                  </div>
+                  <span className="text-gray-300 group-hover:text-[#003366] font-bold">+</span>
+              </button>
+              
+              <button onClick={() => handleAskQuestion('When is my next test due?')} className="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700 group transition-colors">
+                  <div className="flex items-center gap-3">
+                      <span className="text-lg bg-blue-50 text-blue-500 p-1.5 rounded-lg">📅</span>
+                      <span className="font-bold text-sm text-gray-700 dark:text-gray-200">Next Test Deadline?</span>
+                  </div>
+                  <span className="text-gray-300 group-hover:text-[#003366] font-bold">+</span>
+              </button>
+              
+              <button onClick={() => handleAskQuestion('I lost my password')} className="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700 group transition-colors">
+                  <div className="flex items-center gap-3">
+                      <span className="text-lg bg-yellow-50 text-yellow-500 p-1.5 rounded-lg">🔑</span>
+                      <span className="font-bold text-sm text-gray-700 dark:text-gray-200">Lost Password?</span>
+                  </div>
+                  <span className="text-gray-300 group-hover:text-[#003366] font-bold">+</span>
+              </button>
           </div>
-        </div>
+      </div>
 
-        <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
-      </div>
-      
-      <div className="mt-6 w-full max-w-md">
-        <h3 className="font-bold text-[#003366] dark:text-white text-sm mb-2 ml-1">Common Questions</h3>
-        <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl border border-white dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-             {recentQuestions.map((q, idx) => (
-                 <button key={idx} onClick={() => handleAskQuestion(q)} className="w-full text-left p-3 text-xs font-semibold text-[#15803d] flex justify-between items-center hover:bg-white dark:hover:bg-gray-700 first:rounded-t-xl last:rounded-b-xl">
-                    <span>💬 {q}</span>
-                    <span className="opacity-50">→</span>
-                 </button>
-             ))}
-             <button onClick={() => handleAskQuestion('Why is my registration blocked?')} className="w-full text-left p-3 text-xs font-semibold text-[#003366] dark:text-white flex justify-between items-center hover:bg-white dark:hover:bg-gray-700 rounded-t-xl">
-                <span>🚫 Registration Blocked?</span>
-                <span className="text-gray-400">+</span>
-             </button>
-             <button onClick={() => handleAskQuestion('When is my next test due?')} className="w-full text-left p-3 text-xs font-semibold text-[#003366] dark:text-white flex justify-between items-center hover:bg-white dark:hover:bg-gray-700">
-                <span>📅 Next Test Deadline?</span>
-                <span className="text-gray-400">+</span>
-             </button>
-             <button onClick={() => handleAskQuestion('I lost my password')} className="w-full text-left p-3 text-xs font-semibold text-[#003366] dark:text-white flex justify-between items-center hover:bg-white dark:hover:bg-gray-700 rounded-b-xl">
-                <span>🔑 Lost Password?</span>
-                <span className="text-gray-400">+</span>
-             </button>
-        </div>
-      </div>
+      {/* SCAN CONFIRMATION MODAL */}
+      {scanResult && (
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200" onClick={() => setScanResult(null)}>
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl transform transition-all scale-100 space-y-4" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 pb-4">
+                      <div className="bg-green-100 dark:bg-green-900 p-2 rounded-full">
+                          <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                      <div>
+                          <h3 className="font-black text-xl text-[#003366] dark:text-white">Scan Complete</h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{scanResult.details}</p>
+                      </div>
+                  </div>
+                  
+                  <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Detected VIN</label>
+                      <input 
+                          type="text" 
+                          value={editedVin}
+                          onChange={(e) => setEditedVin(e.target.value.toUpperCase())}
+                          className="w-full p-4 text-center text-xl font-mono font-bold bg-gray-50 dark:bg-gray-700 border-2 border-green-500 rounded-xl focus:outline-none dark:text-white"
+                      />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                      <button onClick={() => setScanResult(null)} className="py-3 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200">
+                          Rescan
+                      </button>
+                      <button onClick={confirmVin} className="py-3 bg-[#15803d] text-white font-bold rounded-xl shadow-lg hover:bg-[#166534]">
+                          Confirm & Check
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
     </div>
   );
 };

@@ -7,6 +7,49 @@ const API_KEY = process.env.API_KEY || 'AIzaSyBIVTK3aqKBA9JwtXBeGbpWEgMy4tPXmtk'
 
 const getAI = () => new GoogleGenAI({ apiKey: API_KEY });
 
+// --- OFFLINE KNOWLEDGE BASE (Free Fallback) ---
+const OFFLINE_KNOWLEDGE_BASE = [
+  {
+    keywords: ['blocked', 'hold', 'registration', 'dmv', 'renew'],
+    answer: "🔒 **Why is my registration blocked?**\n\nCommon reasons:\n1. **Unpaid State Fee:** You must pay the $30 annual compliance fee per vehicle at https://cleantruckcheck.arb.ca.gov/.\n2. **Missing Test:** You need a passing Smoke/OBD test submitted within 90 days of your registration date.\n3. **Data Mismatch:** The VIN on the test must match the DMV database exactly."
+  },
+  {
+    keywords: ['deadline', 'when', 'due', 'date', 'frequency', 'often'],
+    answer: "📅 **Testing Deadlines:**\n\n• **2025-2026:** Most vehicles need to pass a test **Twice a Year** (every 6 months).\n• **2027+:** Increases to **4 times a year**.\n• The deadline is based on your DMV registration expiration date."
+  },
+  {
+    keywords: ['password', 'login', 'reset', 'access', 'account'],
+    answer: "🔑 **Lost Password:**\n\nWe cannot reset your password. You must do it on the official CARB portal:\nhttps://cleantruckcheck.arb.ca.gov/\n\nClick 'Forgot Password' on their login screen."
+  },
+  {
+    keywords: ['cost', 'price', 'fee', 'how much', 'charge'],
+    answer: "💰 **Program Costs:**\n\n1. **CARB Annual Fee:** $30 per vehicle (paid to the State).\n2. **Testing Fee:** Paid to the certified tester. Prices vary by location (typically $150-$250).\n\nCall 617-359-6953 for a quote."
+  },
+  {
+    keywords: ['pickup', 'light', 'f250', '2500', 'gas', 'gasoline'],
+    answer: "❌ **Wrong Program:**\n\nThe Clean Truck Check ONLY applies to **Diesel** vehicles over **14,000 lbs GVWR**.\n\n• Pickups (F-250/2500) are usually under 14k lbs.\n• Gas vehicles need a BAR Smog Check, not this program."
+  },
+  {
+    keywords: ['contact', 'phone', 'email', 'help', 'human', 'support', 'number'],
+    answer: "📞 **Contact Support:**\n\n• **NorCal CARB Mobile:** 617-359-6953 (Testing & Help)\n• **Official CARB Hotline:** 866-634-3735 (hdim@arb.ca.gov)"
+  },
+  {
+    keywords: ['certificate', 'print', 'proof', 'paper'],
+    answer: "📄 **Compliance Certificate:**\n\nOnce you pay the $30 fee AND pass the smoke test, you can print your certificate instantly from your CTC-VIS account dashboard."
+  }
+];
+
+const findOfflineAnswer = (query: string): string => {
+    const lowerQuery = query.toLowerCase();
+    const match = OFFLINE_KNOWLEDGE_BASE.find(item => 
+        item.keywords.some(k => lowerQuery.includes(k))
+    );
+    
+    if (match) return match.answer;
+    
+    return "ℹ️ **Offline Mode:**\n\nI couldn't match your question to my offline database, but here is a compliance checklist:\n\n1. Did you pay the $30 annual fee?\n2. Is your test less than 90 days old?\n3. Is your GVWR over 14,000 lbs?\n\nFor complex issues, please Text/Call: **617-359-6953**.";
+};
+
 export const SYSTEM_INSTRUCTION = `
 You are VIN DIESEL, a specialized AI Compliance Officer for the **California Clean Truck Check - Heavy-Duty Inspection and Maintenance (HD I/M) Program**.
 
@@ -96,51 +139,73 @@ export const sendMessage = async (
 
     return {
       text: response.text || "I couldn't generate a response.",
-      groundingUrls
+      groundingUrls,
+      isOffline: false
     };
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    throw new Error(error.message || "Connection failed");
+    console.warn("Gemini API Error - Switching to Offline Mode:", error.message);
+    
+    // OFFLINE FALLBACK
+    const offlineAnswer = findOfflineAnswer(text);
+    return {
+        text: offlineAnswer + "\n\nNeed clarity? Text/Call a Tester: 617-359-6953",
+        groundingUrls: [],
+        isOffline: true
+    };
   }
 };
 
-export const extractVinFromImage = async (file: File): Promise<string> => {
+export const extractVinFromImage = async (file: File): Promise<{vin: string, description: string}> => {
   const ai = getAI();
   const b64 = await fileToBase64(file);
   
   const prompt = `
   Analyze this image of a vehicle label (Door Jamb Label, Federal Certification Label, or Windshield Tag).
   
-  YOUR TASK: Locate and Extract the 17-character VIN (Vehicle Identification Number).
+  YOUR TASK: 
+  1. Identify the vehicle year, make, and model if visible (e.g. "2018 Ford F-550").
+  2. Locate and Extract the 17-character VIN (Vehicle Identification Number).
   
-  CRITICAL: The image might be ROTATED (90 degrees, 180 degrees) or UPSIDE DOWN. 
-  You must look for text in ALL orientations.
-  
-  STRATEGY:
-  1. Look for the label "VIN", "Vehicle ID", "No.", or "Identification Number".
-  2. Scan for a 17-character alphanumeric string. It typically starts with 1, 2, 3, 4, 5, J, K, L, M, N, S, T, V, W, Y, Z.
-  3. **BARCODE CHECK:** If there is a barcode, the VIN is often printed immediately above or below it. Read that text.
-  4. IGNORE letters I (Eye), O (Oh), and Q (Cue) as they are invalid in VINs.
-  5. The background might be busy (text like "DATE:", "GVWR:", "TIRE:", "FORD MOTOR COMPANY"). Focus only on the unique 17-char ID.
+  CRITICAL: 
+  - The image might be ROTATED (90 degrees, 180 degrees) or UPSIDE DOWN. 
+  - Scan for a 17-character alphanumeric string. It typically starts with 1, 2, 3, 4, 5, J, K, L, M, N, S, T, V, W, Y, Z.
+  - **BARCODE CHECK:** If there is a barcode, the VIN is often printed immediately above or below it.
+  - Fix common OCR errors (I->1, O->0, Q->0/9, B->8).
+  - VINs never contain I, O, Q.
 
-  OUTPUT:
-  Return ONLY the 17-character string. Remove any hyphens or spaces. If unreadable, return "FAILED".
+  OUTPUT JSON:
+  {
+    "vin": "THE_EXTRACTED_VIN",
+    "description": "Short description of label found (e.g. '2018 Ford Door Tag' or 'Unidentified Label')"
+  }
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: MODEL_NAMES.PRO, // Pro is better for complex vision/barcodes
+      model: MODEL_NAMES.PRO,
       contents: {
         parts: [
           { inlineData: { mimeType: file.type, data: b64 } },
           { text: prompt }
         ]
+      },
+      config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                  vin: { type: Type.STRING },
+                  description: { type: Type.STRING }
+              }
+          }
       }
     });
 
-    const text = response.text?.trim() || '';
-    // Basic cleanup of common OCR errors
-    return text.replace(/[^A-HJ-NPR-Z0-9]/gi, '').toUpperCase();
+    const json = JSON.parse(response.text || '{}');
+    return {
+        vin: (json.vin || '').toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, ''),
+        description: json.description || 'Vehicle Label'
+    };
   } catch (error) {
     console.error("VIN Extraction Error:", error);
     throw error;

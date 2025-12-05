@@ -225,7 +225,7 @@ const App: React.FC = () => {
                 <p className="text-[#15803d] text-[9px] font-bold tracking-widest uppercase">CHECK APP</p>
             </div>
         </div>
-        <button onClick={() => setShowInstall(true)} className="text-[#15803d] dark:text-green-400 font-bold text-xs border border-[#15803d] dark:border-green-400 px-3 py-1.5 rounded-full hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
+        <button onClick={() => setShowInstall(true)} className="text-[#003366] dark:text-green-400 font-bold text-xs border border-[#003366] dark:border-green-400 px-3 py-1.5 rounded-full hover:bg-gray-50 dark:hover:bg-green-900/30 transition-colors">
             SHARE APP
         </button>
       </header>
@@ -256,7 +256,7 @@ const App: React.FC = () => {
         {currentView === AppView.ADMIN && <AdminView />}
         
         {/* Footer Info inside scrollable area to save fixed space */}
-        <div className="mt-8 mb-4 text-center text-[10px] text-gray-400 dark:text-gray-500 space-y-1">
+        <div className="mt-8 mb-4 text-center text-[10px] text-gray-600 dark:text-gray-500 space-y-1">
             <p>&copy; 2026 Mobile Carb Check</p>
             <p><a href="mailto:bryan@norcalcarbmobile.com" className="hover:underline">bryan@norcalcarbmobile.com</a></p>
         </div>
@@ -335,10 +335,10 @@ const App: React.FC = () => {
                 onClick={() => setCurrentView(btn.id as AppView)}
                 className={`flex flex-col items-center justify-center w-16 h-full pb-4 transition-all duration-200 active:scale-90 ${currentView === btn.id ? '-translate-y-2' : ''}`}
             >
-                <div className={`p-2 rounded-2xl mb-1 transition-colors ${currentView === btn.id ? 'bg-[#15803d] text-white shadow-lg shadow-green-900/20' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+                <div className={`p-2 rounded-2xl mb-1 transition-colors ${currentView === btn.id ? 'bg-[#15803d] text-white shadow-lg shadow-green-900/20' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={btn.icon} /></svg>
                 </div>
-                <span className={`text-[9px] font-bold tracking-widest ${currentView === btn.id ? 'text-[#15803d] dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>{btn.label}</span>
+                <span className={`text-[9px] font-bold tracking-widest ${currentView === btn.id ? 'text-[#003366] dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`}>{btn.label}</span>
             </button>
         ))}
       </nav>
