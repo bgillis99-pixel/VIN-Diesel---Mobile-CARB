@@ -9,6 +9,7 @@ const AdminView: React.FC = () => {
   const [currentLead, setCurrentLead] = useState<Lead | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const regInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   // Database / Submission State
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -105,6 +106,19 @@ const AdminView: React.FC = () => {
       }
   };
   
+  // Google Calendar Link Generator
+  const generateCalendarLink = (name: string) => {
+      const title = encodeURIComponent(`Sent CARB App to ${name}`);
+      const details = encodeURIComponent(`Sent app invite to ${name}. Follow up if no submission in 24 hours. https://carbcleantruckcheck.app`);
+      const now = new Date();
+      // Start time now, end time +15 min
+      const start = now.toISOString().replace(/-|:|\.\d\d\d/g, "");
+      now.setMinutes(now.getMinutes() + 15);
+      const end = now.toISOString().replace(/-|:|\.\d\d\d/g, "");
+      
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}`;
+  };
+
   const handleInvite = () => {
       if (!customerName || !customerPhone) return alert("Enter name and phone");
       
@@ -112,7 +126,7 @@ const AdminView: React.FC = () => {
       const encoded = encodeURIComponent(message);
       
       // Save customer
-      const newCustomer = { name: customerName, phone: customerPhone, date: new Date().toLocaleDateString() };
+      const newCustomer = { name: customerName, phone: customerPhone, date: new Date().toLocaleString() };
       const updated = [newCustomer, ...prevCustomers];
       setPrevCustomers(updated);
       localStorage.setItem('vin_diesel_customers', JSON.stringify(updated));
@@ -125,10 +139,50 @@ const AdminView: React.FC = () => {
       window.location.href = `sms:${customerPhone}?body=${encoded}`;
   };
 
+  const handleBulkImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+          const text = evt.target?.result as string;
+          const lines = text.split('\n');
+          const newContacts: any[] = [];
+          
+          lines.forEach(line => {
+              // Assume CSV format: Name,Phone
+              const parts = line.split(',');
+              if (parts.length >= 2) {
+                  const name = parts[0].trim();
+                  const phone = parts[1].trim();
+                  if (name && phone) {
+                      newContacts.push({
+                          name, 
+                          phone, 
+                          date: new Date().toLocaleString() + ' (Imported)'
+                      });
+                  }
+              }
+          });
+
+          if (newContacts.length > 0) {
+              const updated = [...newContacts, ...prevCustomers];
+              setPrevCustomers(updated);
+              localStorage.setItem('vin_diesel_customers', JSON.stringify(updated));
+              alert(`Successfully imported ${newContacts.length} contacts.`);
+          } else {
+              alert("No valid contacts found. Please ensure CSV format is: Name,Phone");
+          }
+      };
+      reader.readAsText(file);
+      // Reset input
+      e.target.value = '';
+  };
+
   const exportToCSV = () => {
       if (submissions.length === 0) return alert("No data to export.");
       
-      const headers = ['Timestamp', 'Type', 'Summary', 'Coordinates (Lat,Lng)'];
+      const headers = ['Date/Time', 'Type', 'Summary', 'Coordinates (Lat,Lng)'];
       const rows = submissions.map(s => [
           s.dateStr,
           s.type,
@@ -217,7 +271,7 @@ const AdminView: React.FC = () => {
                         <table className="w-full text-xs text-left">
                             <thead className="bg-gray-100 text-gray-600 uppercase font-bold border-b border-gray-200">
                                 <tr>
-                                    <th className="p-3">Timestamp</th>
+                                    <th className="p-3">Date/Time (Download)</th>
                                     <th className="p-3">Type</th>
                                     <th className="p-3">Summary</th>
                                     <th className="p-3">Location</th>
@@ -230,7 +284,7 @@ const AdminView: React.FC = () => {
                                 ) : (
                                     submissions.map(sub => (
                                         <tr key={sub.id} className="hover:bg-gray-50">
-                                            <td className="p-3 whitespace-nowrap">{sub.dateStr}</td>
+                                            <td className="p-3 whitespace-nowrap text-gray-700 font-medium">{sub.dateStr}</td>
                                             <td className="p-3 font-bold">
                                                 <span className={`px-2 py-1 rounded ${
                                                     sub.type === 'VIN_CHECK' ? 'bg-blue-100 text-blue-700' : 
@@ -264,49 +318,99 @@ const AdminView: React.FC = () => {
             )}
 
             {activeTab === 'INVITE' && (
-                <div className="space-y-8">
-                    <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
-                        <h3 className="text-xl font-bold text-[#003366] mb-4">Invite New Customer</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Customer Name</label>
-                                <input 
-                                    type="text" 
-                                    value={customerName} 
-                                    onChange={e => setCustomerName(e.target.value)} 
-                                    placeholder="e.g. John Smith"
-                                    className="w-full p-3 border border-gray-300 rounded-lg"
-                                />
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Invite Form */}
+                        <div className="bg-blue-50 p-6 rounded-xl border border-blue-200 h-full">
+                            <h3 className="text-xl font-bold text-[#003366] mb-4">Invite New Customer</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Customer Name</label>
+                                    <input 
+                                        type="text" 
+                                        value={customerName} 
+                                        onChange={e => setCustomerName(e.target.value)} 
+                                        placeholder="e.g. John Smith"
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
+                                    <input 
+                                        type="tel" 
+                                        value={customerPhone} 
+                                        onChange={e => setCustomerPhone(e.target.value)} 
+                                        placeholder="e.g. 555-123-4567"
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                    />
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button onClick={handleInvite} className="py-4 bg-[#003366] text-white font-bold rounded-xl hover:bg-[#002244] shadow-lg flex items-center justify-center gap-2">
+                                        <span>📱 SEND TEXT</span>
+                                    </button>
+                                    {customerName && (
+                                        <a 
+                                            href={generateCalendarLink(customerName)} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="py-4 bg-white border-2 border-[#003366] text-[#003366] font-bold rounded-xl hover:bg-blue-50 flex items-center justify-center gap-2"
+                                        >
+                                            <span>📅 CALENDAR</span>
+                                        </a>
+                                    )}
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
-                                <input 
-                                    type="tel" 
-                                    value={customerPhone} 
-                                    onChange={e => setCustomerPhone(e.target.value)} 
-                                    placeholder="e.g. 555-123-4567"
-                                    className="w-full p-3 border border-gray-300 rounded-lg"
-                                />
+                        </div>
+
+                        {/* Admin Toolbox */}
+                        <div className="space-y-4 flex flex-col">
+                            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex-1">
+                                <h3 className="font-bold text-[#003366] mb-3">Admin Google Workspace</h3>
+                                <div className="grid grid-cols-4 gap-2 text-center">
+                                    <a href="https://mail.google.com" target="_blank" className="p-3 hover:bg-gray-50 rounded-lg flex flex-col items-center">
+                                        <span className="text-2xl mb-1">📧</span>
+                                        <span className="text-[10px] font-bold">Gmail</span>
+                                    </a>
+                                    <a href="https://calendar.google.com" target="_blank" className="p-3 hover:bg-gray-50 rounded-lg flex flex-col items-center">
+                                        <span className="text-2xl mb-1">📅</span>
+                                        <span className="text-[10px] font-bold">Calendar</span>
+                                    </a>
+                                    <a href="https://docs.google.com/spreadsheets" target="_blank" className="p-3 hover:bg-gray-50 rounded-lg flex flex-col items-center">
+                                        <span className="text-2xl mb-1">📊</span>
+                                        <span className="text-[10px] font-bold">Sheets</span>
+                                    </a>
+                                    <a href="https://photos.google.com" target="_blank" className="p-3 hover:bg-gray-50 rounded-lg flex flex-col items-center">
+                                        <span className="text-2xl mb-1">📷</span>
+                                        <span className="text-[10px] font-bold">Photos</span>
+                                    </a>
+                                </div>
                             </div>
-                            <button onClick={handleInvite} className="w-full py-4 bg-[#003366] text-white font-bold rounded-xl hover:bg-[#002244] shadow-lg flex items-center justify-center gap-2">
-                                <span>📱 SEND APP VIA TEXT</span>
-                            </button>
+                            
+                            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <h3 className="font-bold text-[#003366] mb-3">Bulk Import Contacts</h3>
+                                <button onClick={() => csvInputRef.current?.click()} className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold hover:bg-gray-50 hover:border-[#003366] hover:text-[#003366] transition-colors">
+                                    📂 Upload CSV (Name, Phone)
+                                </button>
+                                <input type="file" ref={csvInputRef} accept=".csv" className="hidden" onChange={handleBulkImport} />
+                                <p className="text-[10px] text-gray-400 mt-2 text-center">Format: Column 1 Name, Column 2 Phone</p>
+                            </div>
                         </div>
                     </div>
                     
                     <div>
-                        <h3 className="text-lg font-bold text-[#003366] mb-3">Previous Customers ({prevCustomers.length})</h3>
-                        <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-200">
+                        <h3 className="text-lg font-bold text-[#003366] mb-3">Invited List ({prevCustomers.length})</h3>
+                        <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-200 max-h-60 overflow-y-auto">
                             {prevCustomers.length === 0 && <p className="p-4 text-center text-gray-600">No customers invited yet.</p>}
                             {prevCustomers.map((c, i) => (
-                                <div key={i} className="p-4 flex justify-between items-center bg-white">
+                                <div key={i} className="p-3 flex justify-between items-center bg-white hover:bg-blue-50">
                                     <div>
-                                        <p className="font-bold text-[#003366]">{c.name}</p>
-                                        <p className="text-xs text-gray-600">{c.date}</p>
+                                        <p className="font-bold text-[#003366] text-sm">{c.name}</p>
+                                        <p className="text-xs text-gray-500">{c.date}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <a href={`tel:${c.phone}`} className="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200">📞</a>
-                                        <a href={`sms:${c.phone}`} className="p-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">💬</a>
+                                        <a href={`tel:${c.phone}`} className="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200 text-xs">📞</a>
+                                        <a href={`sms:${c.phone}`} className="p-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 text-xs">💬</a>
                                     </div>
                                 </div>
                             ))}
