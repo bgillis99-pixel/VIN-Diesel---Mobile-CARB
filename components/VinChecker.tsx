@@ -489,7 +489,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
           </div>
       </div>
 
-      {/* Share & Support Section (Uniform Styling) */}
+      {/* Share & Support Section (Updated Style) */}
       <div className="px-2 pb-8">
         <div className="mt-6 bg-[#003366] rounded-2xl p-6 text-white text-center shadow-lg relative overflow-hidden">
              
@@ -499,17 +499,17 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
              </p>
 
              <div className="grid grid-cols-3 gap-3 relative z-10">
-                 <a href="tel:6173596953" className="flex flex-col items-center justify-center bg-white/10 backdrop-blur-sm border border-white/20 p-3 rounded-xl hover:bg-white/20 transition-colors">
-                     <span className="text-xl mb-1">📞</span>
-                     <span className="text-[9px] font-bold tracking-wider">CALL</span>
+                 <a href="tel:6173596953" className="flex flex-col items-center justify-center bg-white border border-white p-3 rounded-xl hover:bg-gray-100 transition-colors text-[#003366]">
+                     <span className="text-2xl mb-1">📞</span>
+                     <span className="text-[10px] font-black tracking-widest">CALL</span>
                  </a>
-                 <button onClick={onShareApp} className="flex flex-col items-center justify-center bg-white/10 backdrop-blur-sm border border-white/20 p-3 rounded-xl hover:bg-white/20 transition-colors">
-                     <span className="text-xl mb-1">🚀</span>
-                     <span className="text-[9px] font-bold tracking-wider">SHARE</span>
+                 <button onClick={onShareApp} className="flex flex-col items-center justify-center bg-white border border-white p-3 rounded-xl hover:bg-gray-100 transition-colors text-[#003366]">
+                     <span className="text-2xl mb-1">🚀</span>
+                     <span className="text-[10px] font-black tracking-widest">SHARE</span>
                  </button>
-                 <a href="sms:6173596953?body=I need help with CARB Compliance" className="flex flex-col items-center justify-center bg-white/10 backdrop-blur-sm border border-white/20 p-3 rounded-xl hover:bg-white/20 transition-colors">
-                     <span className="text-xl mb-1">💬</span>
-                     <span className="text-[9px] font-bold tracking-wider">TEXT</span>
+                 <a href="sms:6173596953?body=I need help with CARB Compliance" className="flex flex-col items-center justify-center bg-white border border-white p-3 rounded-xl hover:bg-gray-100 transition-colors text-[#003366]">
+                     <span className="text-2xl mb-1">💬</span>
+                     <span className="text-[10px] font-black tracking-widest">TEXT</span>
                  </a>
              </div>
              

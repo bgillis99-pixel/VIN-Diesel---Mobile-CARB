@@ -3,7 +3,7 @@ import { analyzeMedia, generateAppImage, generateSpeech, transcribeAudio } from 
 import { ASPECT_RATIOS, IMAGE_SIZES } from '../constants';
 
 const MediaTools: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'analyze' | 'generate' | 'audio' | 'resources'>('analyze');
+  const [activeTab, setActiveTab] = useState<'analyze' | 'generate' | 'audio' | 'files' | 'resources'>('analyze');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -79,6 +79,7 @@ const MediaTools: React.FC = () => {
         <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'analyze' ? 'text-[#003366] dark:text-white border-b-4 border-[#15803d]' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`} onClick={() => setActiveTab('analyze')}>Analyze</button>
         <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'generate' ? 'text-[#003366] dark:text-white border-b-4 border-[#15803d]' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`} onClick={() => setActiveTab('generate')}>Generate</button>
         <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'audio' ? 'text-[#003366] dark:text-white border-b-4 border-[#15803d]' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`} onClick={() => setActiveTab('audio')}>Audio</button>
+        <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'files' ? 'text-[#003366] dark:text-white border-b-4 border-[#15803d]' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`} onClick={() => setActiveTab('files')}>Files</button>
         <button className={`flex-1 p-4 font-bold text-sm whitespace-nowrap ${activeTab === 'resources' ? 'text-[#003366] dark:text-white border-b-4 border-[#15803d]' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`} onClick={() => setActiveTab('resources')}>Links</button>
       </div>
 
@@ -129,6 +130,41 @@ const MediaTools: React.FC = () => {
                         🎙️ Upload Audio
                         <input type="file" accept="audio/*" className="hidden" onChange={handleTranscribe} />
                     </label>
+                </div>
+            </div>
+        )}
+
+        {activeTab === 'files' && (
+            <div className="space-y-6">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                    <h3 className="text-[#003366] dark:text-blue-200 font-bold text-lg mb-2">Cloud Storage</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                        Store your VIN photos, engine tags, and database files securely in your cloud folders. We link directly to your apps.
+                    </p>
+                    
+                    <a href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow mb-3">
+                        <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-lg text-2xl">📂</div>
+                        <div>
+                            <p className="font-bold text-[#003366] dark:text-white">Google Drive</p>
+                            <p className="text-xs text-gray-500">Open My Drive</p>
+                        </div>
+                    </a>
+
+                    <a href="https://www.dropbox.com/home" target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="w-10 h-10 flex items-center justify-center bg-blue-50 rounded-lg text-2xl text-blue-500">📦</div>
+                        <div>
+                            <p className="font-bold text-[#003366] dark:text-white">Dropbox</p>
+                            <p className="text-xs text-gray-500">Open Files</p>
+                        </div>
+                    </a>
+                </div>
+
+                <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                     <h3 className="text-[#003366] dark:text-white font-bold text-lg mb-2">Trash / Cleanup</h3>
+                     <p className="text-xs text-gray-500 mb-3">Quickly access your photo trash to free up space.</p>
+                     <a href="https://photos.google.com/trash" target="_blank" rel="noreferrer" className="block w-full p-3 text-center bg-red-50 text-red-600 font-bold rounded-xl border border-red-100 hover:bg-red-100">
+                         🗑️ Empty Photo Trash
+                     </a>
                 </div>
             </div>
         )}
