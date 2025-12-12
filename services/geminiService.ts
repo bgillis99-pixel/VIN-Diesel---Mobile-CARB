@@ -7,6 +7,50 @@ const API_KEY = process.env.API_KEY || 'AIzaSyBIVTK3aqKBA9JwtXBeGbpWEgMy4tPXmtk'
 
 const getAI = () => new GoogleGenAI({ apiKey: API_KEY });
 
+// --- IMAGE PREPROCESSING FOR FIELD USE ---
+const processImageForOCR = (base64Str: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(base64Str);
+
+      // limit size to speed up processing but keep high enough for OCR
+      const MAX_WIDTH = 1024;
+      const scale = MAX_WIDTH / img.width;
+      canvas.width = MAX_WIDTH;
+      canvas.height = img.height * scale;
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      // High Contrast Grayscale Algorithm
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // Standard grayscale
+        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        
+        // Binarize (increase contrast extremely)
+        gray = gray > 100 ? 255 : 0;
+
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      // Return processed base64 (remove prefix)
+      resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+    };
+    img.src = `data:image/jpeg;base64,${base64Str}`;
+  });
+};
+
 // --- OFFLINE KNOWLEDGE BASE (Free Fallback) ---
 const OFFLINE_KNOWLEDGE_BASE = [
   {
@@ -157,35 +201,28 @@ export const sendMessage = async (
 
 export const extractVinFromImage = async (file: File): Promise<{vin: string, description: string}> => {
   const ai = getAI();
-  const b64 = await fileToBase64(file);
+  // Phase 1: Convert original to Base64
+  const originalB64 = await fileToBase64(file);
   
   const prompt = `
-  Analyze this image of a vehicle label (Door Jamb Label, Federal Certification Label, or Windshield Tag).
+  EXTRACT VIN ONLY.
+  Analyze this image (Vehicle Tag/Door Jamb/Windshield).
+  Find the 17-character VIN (Vehicle Identification Number).
   
-  YOUR TASK: 
-  1. Identify the vehicle year, make, and model if visible (e.g. "2018 Ford F-550").
-  2. Locate and Extract the 17-character VIN (Vehicle Identification Number).
-  
-  CRITICAL: 
-  - The image might be ROTATED (90 degrees, 180 degrees) or UPSIDE DOWN. 
-  - Scan for a 17-character alphanumeric string. It typically starts with 1, 2, 3, 4, 5, J, K, L, M, N, S, T, V, W, Y, Z.
-  - **BARCODE CHECK:** If there is a barcode, the VIN is often printed immediately above or below it.
-  - Fix common OCR errors (I->1, O->0, Q->0/9, B->8).
-  - VINs never contain I, O, Q.
-
-  OUTPUT JSON:
-  {
-    "vin": "THE_EXTRACTED_VIN",
-    "description": "Short description of label found (e.g. '2018 Ford Door Tag' or 'Unidentified Label')"
-  }
+  RULES:
+  1. IGNORE strict 8th digit check. Just read what is there.
+  2. If rotated, read it rotated.
+  3. Fix OCR errors: 'I' -> '1', 'O' -> '0', 'Q' -> '0', 'B' -> '8'.
+  4. Output JSON: { "vin": "FOUND_VIN", "description": "Label Type" }
   `;
 
-  try {
-    const response = await ai.models.generateContent({
+  // HELPER: The actual API call
+  const attemptScan = async (imageData: string) => {
+    return await ai.models.generateContent({
       model: MODEL_NAMES.PRO,
       contents: {
         parts: [
-          { inlineData: { mimeType: file.type, data: b64 } },
+          { inlineData: { mimeType: "image/jpeg", data: imageData } },
           { text: prompt }
         ]
       },
@@ -200,15 +237,32 @@ export const extractVinFromImage = async (file: File): Promise<{vin: string, des
           }
       }
     });
+  };
 
-    const json = JSON.parse(response.text || '{}');
+  try {
+    // ATTEMPT 1: Raw Image
+    console.log("Scanning Attempt 1 (Raw)...");
+    let response = await attemptScan(originalB64);
+    let json = JSON.parse(response.text || '{}');
+
+    // Validation: If VIN looks too short or empty, try preprocessing
+    if (!json.vin || json.vin.length < 11) {
+       console.log("Attempt 1 Failed or Low Confidence. Enhancing Image...");
+       
+       // ATTEMPT 2: Enhanced Contrast (Client Side)
+       const enhancedB64 = await processImageForOCR(originalB64);
+       response = await attemptScan(enhancedB64);
+       json = JSON.parse(response.text || '{}');
+    }
+
     return {
         vin: (json.vin || '').toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, ''),
         description: json.description || 'Vehicle Label'
     };
   } catch (error) {
     console.error("VIN Extraction Error:", error);
-    throw error;
+    // Return empty to allow manual fallback in UI
+    return { vin: '', description: 'Scan Failed' };
   }
 };
 

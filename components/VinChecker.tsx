@@ -12,6 +12,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
   const [inputVal, setInputVal] = useState('');
   const [searchMode, setSearchMode] = useState<'VIN' | 'OWNER'>('VIN');
   const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('ANALYZING...');
   const [showTesterSearch, setShowTesterSearch] = useState(false);
   
   // VIN Confirmation State
@@ -76,8 +77,10 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
     if (!file) return;
 
     setLoading(true);
+    setStatusMessage('SCANNING...');
     setScanResult(null);
     try {
+      // Logic inside service now handles retry/contrast enhancement
       const result = await extractVinFromImage(file);
       
       if (result.vin && result.vin.length > 10) {
@@ -90,12 +93,13 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
           
           if (navigator.vibrate) navigator.vibrate(50);
       } else {
-          alert('Could not find a clear VIN. Please try again or type manually.');
+          alert('Scan unclear. Please wipe lens and try again, or type manually.');
       }
     } catch (err) {
       alert('Failed to extract VIN. Please ensure label is clean and lit, or type manually.');
     } finally {
       setLoading(false);
+      setStatusMessage('ANALYZING...');
       if(cameraInputRef.current) cameraInputRef.current.value = '';
       if(galleryInputRef.current) galleryInputRef.current.value = '';
     }
@@ -106,6 +110,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
       if (!file) return;
 
       setLoading(true);
+      setStatusMessage('READING TAG...');
       try {
           const result = await extractEngineTagInfo(file);
           setEngineTagResult(result);
@@ -117,6 +122,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
           alert('Could not read engine tag. Please type details manually or try again.');
       } finally {
           setLoading(false);
+          setStatusMessage('ANALYZING...');
           if (engineTagRef.current) engineTagRef.current.value = '';
       }
   };
@@ -232,33 +238,32 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
     if (val.includes('I')) return alert("⚠️ Invalid character: Letter 'I' is not allowed. Use Number '1'.");
     if (val.includes('Q')) return alert("⚠️ Invalid character: Letter 'Q' is not allowed.");
 
+    // RELAXED PROTOCOL: Warn but do not block on 8th digit
     if (val.length === 17) {
         const eighthChar = val.charAt(7);
         if (!/^\d$/.test(eighthChar)) {
-             alert(`⚠️ CARB Validation Error:\nThe 8th character ('${eighthChar}') must be a number.`);
-             return;
+             const proceed = window.confirm(`⚠️ WARNING: The 8th character ('${eighthChar}') is usually a number (Engine Code). \n\nIf this is a pre-2010 truck or specialty equipment, click OK to proceed.`);
+             if (!proceed) return;
         }
     } else if (val.length > 10 && val.length !== 17) {
          // Warn but allow Entity IDs which vary
          if (searchMode === 'VIN') {
-            alert(`⚠️ VIN Length Alert: Detected ${val.length} characters.\nA valid VIN must be 17 characters.`);
-            return;
+            const proceed = window.confirm(`⚠️ VIN Length Alert: Detected ${val.length} characters. A standard VIN is 17.\n\nProceed anyway?`);
+            if (!proceed) return;
          }
     }
 
     const isVin = /^[A-HJ-NPR-Z0-9]{17}$/.test(val);
     const isEntity = /^\d+$/.test(val);
     
-    if (!isVin && !isEntity) {
-        alert("⚠️ Invalid Format.\n\n• VIN must be 17 characters (No I, O, Q).\n• Entity/TRUCRS ID must be numbers.");
-        return;
-    }
+    // Fallback logic for manual override
+    const finalType = isVin ? 'VIN' : (isEntity ? 'ENTITY' : 'VIN');
     
     // Log manual entry too
-    saveToAdminDb('VIN_CHECK', `Manual Check: ${val}`, { value: val, type: isVin ? 'VIN' : 'ENTITY' });
+    saveToAdminDb('VIN_CHECK', `Check: ${val}`, { value: val, type: finalType });
 
-    onAddToHistory(val, isVin ? 'VIN' : isEntity ? 'ENTITY' : 'TRUCRS');
-    const param = isVin ? 'vin' : isEntity ? 'entity' : 'trucrs';
+    onAddToHistory(val, finalType === 'VIN' ? 'VIN' : 'ENTITY');
+    const param = finalType === 'VIN' ? 'vin' : 'entity';
     window.open(`https://cleantruckcheck.arb.ca.gov/Fleet/Vehicle/VehicleComplianceStatusLookup?${param}=${val}`, '_blank');
   };
 
@@ -386,7 +391,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
                 <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                 <div className="flex flex-col items-center justify-center gap-1">
                     <span className="text-2xl">📸</span> 
-                    <span className="font-black text-lg tracking-wide">{loading ? 'ANALYZING...' : 'SCAN VIN TAG / BARCODE'}</span>
+                    <span className="font-black text-lg tracking-wide">{loading ? statusMessage : 'SCAN VIN TAG / BARCODE'}</span>
                 </div>
             </button>
             <input 

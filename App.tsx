@@ -20,11 +20,12 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-const AppLogo = () => (
+// Custom Logo Component that accepts a branding URL override
+const AppLogo = ({ customLogoUrl }: { customLogoUrl?: string | null }) => (
   <img 
-    src="/logo.svg" 
+    src={customLogoUrl || "/logo.svg"} 
     alt="Mobile Carb Logo" 
-    className="w-10 h-10 drop-shadow-sm rounded-lg object-contain" 
+    className="w-10 h-10 drop-shadow-sm rounded-lg object-contain bg-white/10" 
   />
 );
 
@@ -49,6 +50,10 @@ const App: React.FC = () => {
   // Privacy Policy Modal
   const [showPrivacy, setShowPrivacy] = useState(false);
 
+  // --- WHITE LABEL / BRANDING STATE ---
+  const [brandingName, setBrandingName] = useState<string | null>(null);
+  const [brandingLogo, setBrandingLogo] = useState<string | null>(null);
+
   const shareUrl = 'https://carbcleantruckcheck.app';
   const shareTitle = "Mobile Carb Check";
   const shareText = "Keep your fleet compliant. Have VIN DIESEL check your compliance instantly.";
@@ -57,6 +62,14 @@ const App: React.FC = () => {
   useEffect(() => {
     // Default to Home view on first load if not set
     setCurrentView(AppView.HOME);
+    
+    // Check for Custom Branding (White Labeling) via URL Params
+    // Example: ?fleet=FedEx&logo=https://...
+    const params = new URLSearchParams(window.location.search);
+    const fleetName = params.get('fleet');
+    const logoUrl = params.get('logo');
+    if (fleetName) setBrandingName(fleetName);
+    if (logoUrl) setBrandingLogo(logoUrl);
     
     const savedTheme = localStorage.getItem('vin_diesel_theme');
     if (savedTheme === 'dark') {
@@ -224,10 +237,15 @@ const App: React.FC = () => {
       {/* Header - Sticky */}
       <header className="bg-white dark:bg-gray-800 py-2 px-4 text-center shadow-sm sticky top-0 z-20 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-colors">
         <div className="flex items-center gap-2">
-            <AppLogo />
+            <AppLogo customLogoUrl={brandingLogo} />
             <div className="text-left leading-none">
-                <h1 className="text-base font-black tracking-tighter text-[#003366] dark:text-white">MOBILE CARB</h1>
-                <p className="text-[#15803d] text-[9px] font-bold tracking-widest uppercase">CHECK APP</p>
+                {/* Dynamic Title based on Branding */}
+                <h1 className="text-base font-black tracking-tighter text-[#003366] dark:text-white uppercase truncate max-w-[180px]">
+                    {brandingName || "MOBILE CARB"}
+                </h1>
+                <p className="text-[#15803d] text-[9px] font-bold tracking-widest uppercase">
+                    {brandingName ? "FLEET COMPLIANCE" : "CHECK APP"}
+                </p>
             </div>
         </div>
         
@@ -286,7 +304,7 @@ const App: React.FC = () => {
                   
                   {/* BRANDING LOGO ADDED HERE */}
                   <div className="flex justify-center mb-4 transform scale-150">
-                     <AppLogo />
+                     <AppLogo customLogoUrl={brandingLogo} />
                   </div>
 
                   <div className="relative group cursor-pointer" onClick={() => setFullScreenQR(true)}>
