@@ -247,9 +247,9 @@ const ChatAssistant: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#f8f9fa] dark:bg-gray-800 scroll-smooth">
         {messages.length === 1 && (
             <div className="flex flex-wrap gap-2 mb-4 justify-center">
-                <button onClick={() => handleSend('Why is my vehicle blocked?')} className="bg-white dark:bg-gray-700 border border-gray-200 text-[#003366] dark:text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm hover:bg-gray-50">Why am I blocked?</button>
-                <button onClick={() => handleSend('Lost Password')} className="bg-white dark:bg-gray-700 border border-gray-200 text-[#003366] dark:text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm hover:bg-gray-50">Lost Password?</button>
-                <button onClick={() => handleSend('Next Test Deadline?')} className="bg-white dark:bg-gray-700 border border-gray-200 text-[#003366] dark:text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm hover:bg-gray-50">Test Deadline?</button>
+                <button onClick={() => handleSend('Why is my vehicle blocked?')} className="bg-white dark:bg-gray-700 border border-gray-300 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm hover:bg-gray-50">Why am I blocked?</button>
+                <button onClick={() => handleSend('Lost Password')} className="bg-white dark:bg-gray-700 border border-gray-300 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm hover:bg-gray-50">Lost Password?</button>
+                <button onClick={() => handleSend('Next Test Deadline?')} className="bg-white dark:bg-gray-700 border border-gray-300 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm hover:bg-gray-50">Test Deadline?</button>
             </div>
         )}
 
@@ -258,7 +258,7 @@ const ChatAssistant: React.FC = () => {
             <div className={`max-w-[85%] p-3 rounded-xl text-sm font-medium shadow-sm leading-relaxed ${
               msg.role === 'user' 
                 ? 'bg-[#003366] text-white rounded-br-none' 
-                : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-[#003366] dark:text-white rounded-bl-none'
+                : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-bl-none'
             }`}>
               <div className="whitespace-pre-wrap">{msg.text}</div>
               
@@ -308,7 +308,7 @@ const ChatAssistant: React.FC = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask about compliance..."
-            className="w-full pl-4 pr-12 py-3 rounded-xl border-2 border-[#003366] bg-white dark:bg-gray-700 text-[#003366] dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-[#15803d] font-medium text-base shadow-inner"
+            className="w-full pl-4 pr-12 py-3 rounded-xl border-2 border-[#003366] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:border-[#15803d] font-medium text-base shadow-inner"
           />
           <button 
             onClick={() => handleSend()}
