@@ -7,7 +7,20 @@ const API_KEY = process.env.API_KEY || 'AIzaSyBIVTK3aqKBA9JwtXBeGbpWEgMy4tPXmtk'
 
 const getAI = () => new GoogleGenAI({ apiKey: API_KEY });
 
-// --- IMAGE PREPROCESSING FOR FIELD USE ---
+// --- NATIVE BARCODE DETECTOR TYPES ---
+interface DetectedBarcode {
+  rawValue: string;
+  format: string;
+}
+// We declare it as any to avoid TS errors in environments without the type definition
+declare class BarcodeDetector {
+  constructor(options?: { formats: string[] });
+  static getSupportedFormats(): Promise<string[]>;
+  detect(image: ImageBitmapSource): Promise<DetectedBarcode[]>;
+}
+
+// --- ADVANCED IMAGE PREPROCESSING FOR FIELD USE ---
+// Performs Contrast Stretching and Sharpening to counter glare and blur
 const processImageForOCR = (base64Str: string): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -16,36 +29,92 @@ const processImageForOCR = (base64Str: string): Promise<string> => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(base64Str);
 
-      // limit size to speed up processing but keep high enough for OCR
+      // 1. Resize: Maintain aspect ratio, max width 1024 for speed/quality balance
+      // 1024px is usually sufficient for VIN OCR while keeping processing fast
       const MAX_WIDTH = 1024;
-      const scale = MAX_WIDTH / img.width;
-      canvas.width = MAX_WIDTH;
-      canvas.height = img.height * scale;
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      let width = img.width;
+      let height = img.height;
       
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      if (width > MAX_WIDTH) {
+          height = height * (MAX_WIDTH / width);
+          width = MAX_WIDTH;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
+      
+      // 2. Grayscale & Stats for Contrast Stretching
+      // We calculate min/max luminosity to stretch the histogram (Auto-Levels)
+      const grayData = new Uint8Array(width * height);
+      let min = 255;
+      let max = 0;
 
-      // High Contrast Grayscale Algorithm
       for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        // Standard grayscale
-        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        
-        // Binarize (increase contrast extremely)
-        gray = gray > 100 ? 255 : 0;
-
-        data[i] = gray;
-        data[i + 1] = gray;
-        data[i + 2] = gray;
+        // Luminosity method: 0.299R + 0.587G + 0.114B
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        grayData[i / 4] = gray;
+        if (gray < min) min = gray;
+        if (gray > max) max = gray;
       }
 
-      ctx.putImageData(imageData, 0, 0);
+      // Avoid division by zero if image is single color
+      if (max === min) max = min + 1;
+      const range = max - min;
+      const scaleFactor = 255 / range;
+
+      // 3. Apply Sharpening & Contrast Stretch
+      // Sharpening Kernel: [0, -1, 0, -1, 5, -1, 0, -1, 0]
+      // This enhances edges which helps OCR read stamped characters
+      const outputData = new Uint8ClampedArray(data.length); // RGBA
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+           const idx = (y * width + x);
+           
+           // Handle borders (skip sharpening, just apply contrast)
+           if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
+               const val = (grayData[idx] - min) * scaleFactor;
+               const pIdx = idx * 4;
+               outputData[pIdx] = val;
+               outputData[pIdx+1] = val;
+               outputData[pIdx+2] = val;
+               outputData[pIdx+3] = 255;
+               continue;
+           }
+
+           // Convolution for Sharpening
+           const top = grayData[idx - width];
+           const bottom = grayData[idx + width];
+           const left = grayData[idx - 1];
+           const right = grayData[idx + 1];
+           const center = grayData[idx];
+
+           // Apply kernel
+           let sharpened = (center * 5) - (top + bottom + left + right);
+           
+           // Apply Contrast Stretch to the sharpened value
+           sharpened = (sharpened - min) * scaleFactor;
+           
+           // Clamp to 0-255
+           sharpened = Math.min(255, Math.max(0, sharpened));
+
+           const pIdx = idx * 4;
+           outputData[pIdx] = sharpened;
+           outputData[pIdx+1] = sharpened;
+           outputData[pIdx+2] = sharpened;
+           outputData[pIdx+3] = 255; // Alpha
+        }
+      }
+
+      const finalImageData = new ImageData(outputData, width, height);
+      ctx.putImageData(finalImageData, 0, 0);
+      
       // Return processed base64 (remove prefix)
-      resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+      resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
     };
     img.src = `data:image/jpeg;base64,${base64Str}`;
   });
@@ -207,6 +276,28 @@ export const sendMessage = async (
 };
 
 export const extractVinFromImage = async (file: File): Promise<{vin: string, description: string}> => {
+  // PHASE 0: CLIENT-SIDE BARCODE DETECTION (Fastest & Most Accurate)
+  // This uses the native BarcodeDetector API if available in the browser (Chrome Android/Desktop)
+  if ('BarcodeDetector' in window) {
+      try {
+          const formats = await BarcodeDetector.getSupportedFormats();
+          if (formats.includes('code_39') || formats.includes('code_128') || formats.includes('data_matrix')) {
+              const barcodeDetector = new BarcodeDetector({ formats: ['code_39', 'code_128', 'data_matrix', 'qr_code', 'pdf417'] });
+              const bitmap = await createImageBitmap(file);
+              const barcodes = await barcodeDetector.detect(bitmap);
+              
+              // Filter for likely VINs (17 chars alphanumeric)
+              const validVin = barcodes.find(b => b.rawValue.length === 17 && /^[A-HJ-NPR-Z0-9]{17}$/.test(b.rawValue));
+              if (validVin) {
+                  console.log("VIN detected via Native Barcode SDK:", validVin.rawValue);
+                  return { vin: validVin.rawValue, description: '✅ Scanned via Barcode (100% Accuracy)' };
+              }
+          }
+      } catch (e) {
+          console.debug('Barcode detection skipped or failed:', e);
+      }
+  }
+
   const ai = getAI();
   // Phase 1: Convert original to Base64
   const originalB64 = await fileToBase64(file);
@@ -220,6 +311,8 @@ export const extractVinFromImage = async (file: File): Promise<{vin: string, des
   - The label might be DIRTY, GREASY, FADED, SCRATCHED, or covered in road grime.
   - The image might be taken through glass (glare) or at a weird angle.
   - Ignore the dirt. Ignore the glare. Look for the stamped or printed alphanumerics.
+  - If a BARCODE is visible, read the text numbers below or above it.
+  - If the image looks high-contrast/black-and-white, it has been pre-processed to remove glare. Read the white characters.
   
   TARGET PATTERN:
   - 17 Characters.
@@ -261,15 +354,16 @@ export const extractVinFromImage = async (file: File): Promise<{vin: string, des
 
   try {
     // ATTEMPT 1: Raw Image (Best for dirty/greasy inputs where contrast filters might lose detail)
-    console.log("Scanning Attempt 1 (Raw)...");
+    console.log("Scanning Attempt 1 (Raw AI)...");
     let response = await attemptScan(originalB64);
     let json = JSON.parse(response.text || '{}');
 
     // Validation: If VIN looks too short or empty, try preprocessing
-    if (!json.vin || json.vin.length < 11) {
+    if (!json.vin || json.vin.length < 11 || json.vin.includes('I') || json.vin.includes('O')) {
        console.log("Attempt 1 Failed or Low Confidence. Enhancing Image...");
        
-       // ATTEMPT 2: Enhanced Contrast (Client Side)
+       // ATTEMPT 2: Enhanced Contrast & Sharpening (Client Side)
+       // This handles the glare/angle issues by normalizing the image
        const enhancedB64 = await processImageForOCR(originalB64);
        response = await attemptScan(enhancedB64);
        json = JSON.parse(response.text || '{}');
