@@ -12,15 +12,70 @@ interface DetectedBarcode {
   rawValue: string;
   format: string;
 }
-// We declare it as any to avoid TS errors in environments without the type definition
 declare class BarcodeDetector {
   constructor(options?: { formats: string[] });
   static getSupportedFormats(): Promise<string[]>;
   detect(image: ImageBitmapSource): Promise<DetectedBarcode[]>;
 }
 
+// --- VIN VALIDATION LOGIC ---
+const VIN_TRANSLITERATION: Record<string, number> = {
+    'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8,
+    'J': 1, 'K': 2, 'L': 3, 'M': 4, 'N': 5, 'P': 7, 'R': 9,
+    'S': 2, 'T': 3, 'U': 4, 'V': 5, 'W': 6, 'X': 7, 'Y': 8, 'Z': 9,
+    '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '0': 0
+};
+const VIN_WEIGHTS = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2];
+
+const validateChecksum = (vin: string): boolean => {
+    if (vin.length !== 17) return false;
+    let sum = 0;
+    for (let i = 0; i < 17; i++) {
+        if (i === 8) continue; // Check digit position
+        const char = vin[i];
+        const val = VIN_TRANSLITERATION[char];
+        if (val === undefined) return false;
+        sum += val * VIN_WEIGHTS[i];
+    }
+    const check = sum % 11;
+    const checkChar = check === 10 ? 'X' : check.toString();
+    return checkChar === vin[8];
+};
+
+// Attempts to fix common OCR errors to make checksum pass
+const repairVin = (vin: string): string => {
+    if (validateChecksum(vin)) return vin;
+
+    // Common swaps: 5<->S, 8<->B, 2<->Z, 6<->G
+    const swaps = [
+        { char: '5', replacement: 'S' }, { char: 'S', replacement: '5' },
+        { char: '8', replacement: 'B' }, { char: 'B', replacement: '8' },
+        { char: '2', replacement: 'Z' }, { char: 'Z', replacement: '2' },
+        { char: '6', replacement: 'G' }, { char: 'G', replacement: '6' }
+    ];
+
+    // Try single character swaps
+    for (let i = 0; i < 17; i++) {
+        if (i === 8) continue; // Don't swap check digit usually
+        const originalChar = vin[i];
+        
+        for (const swap of swaps) {
+            if (originalChar === swap.char) {
+                const chars = vin.split('');
+                chars[i] = swap.replacement;
+                const candidate = chars.join('');
+                if (validateChecksum(candidate)) {
+                    console.log(`VIN Repaired: Swapped ${originalChar} to ${swap.replacement} at pos ${i}`);
+                    return candidate;
+                }
+            }
+        }
+    }
+    return vin; // Could not repair
+};
+
 // --- ADVANCED IMAGE PREPROCESSING FOR FIELD USE ---
-// Performs Contrast Stretching and Sharpening to counter glare and blur
+// Uses Upscaling + Adaptive Thresholding (Integral Image)
 const processImageForOCR = (base64Str: string): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -29,92 +84,102 @@ const processImageForOCR = (base64Str: string): Promise<string> => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(base64Str);
 
-      // 1. Resize: Maintain aspect ratio, max width 1024 for speed/quality balance
-      // 1024px is usually sufficient for VIN OCR while keeping processing fast
-      const MAX_WIDTH = 1024;
+      // 1. UPSCALE: Ensure minimum width of 1024px for detail, Cap at 2048px
+      const MIN_WIDTH = 1024;
+      const MAX_WIDTH = 2048;
       let width = img.width;
       let height = img.height;
       
-      if (width > MAX_WIDTH) {
-          height = height * (MAX_WIDTH / width);
+      if (width < MIN_WIDTH) {
+          const scale = MIN_WIDTH / width;
+          width = MIN_WIDTH;
+          height = height * scale;
+      } else if (width > MAX_WIDTH) {
+          const scale = MAX_WIDTH / width;
           width = MAX_WIDTH;
+          height = height * scale;
       }
       
       canvas.width = width;
       canvas.height = height;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
       
       const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
       
-      // 2. Grayscale & Stats for Contrast Stretching
-      // We calculate min/max luminosity to stretch the histogram (Auto-Levels)
-      const grayData = new Uint8Array(width * height);
-      let min = 255;
-      let max = 0;
-
-      for (let i = 0; i < data.length; i += 4) {
-        // Luminosity method: 0.299R + 0.587G + 0.114B
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        grayData[i / 4] = gray;
-        if (gray < min) min = gray;
-        if (gray > max) max = gray;
-      }
-
-      // Avoid division by zero if image is single color
-      if (max === min) max = min + 1;
-      const range = max - min;
-      const scaleFactor = 255 / range;
-
-      // 3. Apply Sharpening & Contrast Stretch
-      // Sharpening Kernel: [0, -1, 0, -1, 5, -1, 0, -1, 0]
-      // This enhances edges which helps OCR read stamped characters
-      const outputData = new Uint8ClampedArray(data.length); // RGBA
-
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-           const idx = (y * width + x);
-           
-           // Handle borders (skip sharpening, just apply contrast)
-           if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
-               const val = (grayData[idx] - min) * scaleFactor;
-               const pIdx = idx * 4;
-               outputData[pIdx] = val;
-               outputData[pIdx+1] = val;
-               outputData[pIdx+2] = val;
-               outputData[pIdx+3] = 255;
-               continue;
-           }
-
-           // Convolution for Sharpening
-           const top = grayData[idx - width];
-           const bottom = grayData[idx + width];
-           const left = grayData[idx - 1];
-           const right = grayData[idx + 1];
-           const center = grayData[idx];
-
-           // Apply kernel
-           let sharpened = (center * 5) - (top + bottom + left + right);
-           
-           // Apply Contrast Stretch to the sharpened value
-           sharpened = (sharpened - min) * scaleFactor;
-           
-           // Clamp to 0-255
-           sharpened = Math.min(255, Math.max(0, sharpened));
-
-           const pIdx = idx * 4;
-           outputData[pIdx] = sharpened;
-           outputData[pIdx+1] = sharpened;
-           outputData[pIdx+2] = sharpened;
-           outputData[pIdx+3] = 255; // Alpha
-        }
-      }
-
-      const finalImageData = new ImageData(outputData, width, height);
-      ctx.putImageData(finalImageData, 0, 0);
+      // 2. ADAPTIVE CONTRAST ENHANCEMENT (Integral Image Method)
+      // This helps removing gradients (glare/shadows)
       
-      // Return processed base64 (remove prefix)
-      resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      const gray = new Uint8Array(width * height);
+      const integral = new Uint32Array(width * height);
+      
+      // Pass 1: Grayscale & Integral Image Construction
+      for (let y = 0; y < height; y++) {
+          let rowSum = 0;
+          for (let x = 0; x < width; x++) {
+              const i = (y * width + x) * 4;
+              // Luminance
+              const g = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+              gray[y * width + x] = g;
+              
+              rowSum += g;
+              if (y === 0) {
+                  integral[y * width + x] = rowSum;
+              } else {
+                  integral[y * width + x] = integral[(y - 1) * width + x] + rowSum;
+              }
+          }
+      }
+      
+      // Helper: Get sum of rectangle from Integral Image in O(1)
+      const getSum = (x1: number, y1: number, x2: number, y2: number) => {
+          x1 = Math.max(0, x1); y1 = Math.max(0, y1);
+          x2 = Math.min(width - 1, x2); y2 = Math.min(height - 1, y2);
+          
+          const A = (x1 > 0 && y1 > 0) ? integral[(y1 - 1) * width + (x1 - 1)] : 0;
+          const B = (y1 > 0) ? integral[(y1 - 1) * width + x2] : 0;
+          const C = (x1 > 0) ? integral[y2 * width + (x1 - 1)] : 0;
+          const D = integral[y2 * width + x2];
+          return D - B - C + A;
+      };
+      
+      // Pass 2: Apply Local Contrast Enhancement
+      // Window size for local average context
+      const windowSize = Math.floor(width / 32); 
+      
+      for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+              const idx = (y * width + x) * 4;
+              
+              const x1 = x - windowSize/2;
+              const y1 = y - windowSize/2;
+              const x2 = x + windowSize/2;
+              const y2 = y + windowSize/2;
+              
+              const count = (Math.min(width-1, x2) - Math.max(0, x1)) * (Math.min(height-1, y2) - Math.max(0, y1));
+              const sum = getSum(x1, y1, x2, y2);
+              const mean = sum / count;
+              
+              const val = gray[y * width + x];
+              
+              // Algorithm: (Pixel - Mean) + 128
+              // This removes the low-frequency background (lighting) and centers contrast around 128
+              let enhanced = (val - mean) * 2.5 + 128; // 2.5x Contrast boost
+              
+              // Clamp
+              enhanced = Math.min(255, Math.max(0, enhanced));
+              
+              data[idx] = enhanced;
+              data[idx+1] = enhanced;
+              data[idx+2] = enhanced;
+              data[idx+3] = 255;
+          }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.9).split(',')[1]);
     };
     img.src = `data:image/jpeg;base64,${base64Str}`;
   });
@@ -378,6 +443,18 @@ export const extractVinFromImage = async (file: File): Promise<{vin: string, des
     const isInvalidLength = vin.length !== 17;
     // We already cleaned I/O/Q in cleanVinResult, so checking validity of format mainly on length now
     
+    // VALIDATE & REPAIR
+    let description = json.description || 'Vehicle Label';
+    let repairedVin = repairVin(vin);
+    
+    if (validateChecksum(repairedVin)) {
+        vin = repairedVin;
+        description += " | ✅ Checksum Verified";
+    } else if (vin.length === 17) {
+        description += " | ⚠️ Checksum Fail";
+    }
+
+    // IF ATTEMPT 1 FAILED (Invalid length or empty), TRY ENHANCED
     if (!vin || isInvalidLength) {
        console.log("Attempt 1 Failed/Low Confidence. Enhancing Image...");
        
@@ -386,11 +463,17 @@ export const extractVinFromImage = async (file: File): Promise<{vin: string, des
        response = await attemptScan(enhancedB64);
        json = JSON.parse(response.text || '{}');
        vin = cleanVinResult(json.vin || '');
+       
+       repairedVin = repairVin(vin);
+       if (validateChecksum(repairedVin)) {
+           vin = repairedVin;
+           description = "Enhanced Scan | ✅ Checksum Verified";
+       }
     }
 
     return {
         vin: vin,
-        description: json.description || 'Vehicle Label'
+        description: description
     };
   } catch (error) {
     console.error("VIN Extraction Error:", error);
