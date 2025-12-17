@@ -12,7 +12,6 @@ export const checkTruckCompliance = async (vin: string): Promise<Truck['status']
       
       // Simulation Logic based on real world scenarios
       const lastChar = cleanVin.slice(-1);
-      const yearChar = cleanVin.charAt(9); // 10th digit is year
 
       // 1. Simulate "NOT_COMPLIANT" for specific test cases or older letters
       if (['A', 'B', 'C'].includes(lastChar)) {
