@@ -3,6 +3,7 @@ export enum AppView {
   HOME = 'HOME',
   ASSISTANT = 'ASSISTANT',
   ANALYZE = 'ANALYZE',
+  GARAGE = 'GARAGE',
   TOOLS = 'TOOLS',
   PROFILE = 'PROFILE',
   ADMIN = 'ADMIN'
@@ -33,7 +34,16 @@ export interface HistoryItem {
   value: string;
   type: 'VIN' | 'ENTITY' | 'TRUCRS';
   timestamp: number;
-  details?: any; // Added to store scan results
+  details?: any;
+}
+
+export interface Truck {
+  id: string;
+  vin: string;
+  nickname: string;
+  status: 'COMPLIANT' | 'NOT_COMPLIANT' | 'UNKNOWN';
+  lastChecked: number;
+  note?: string;
 }
 
 export interface User {
@@ -53,7 +63,6 @@ export interface Lead {
   blogDraft: string;
 }
 
-// New Interface for CSV Data
 export interface HotLead {
   id: string;
   company: string;

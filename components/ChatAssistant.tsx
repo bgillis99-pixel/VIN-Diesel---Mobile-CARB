@@ -88,7 +88,7 @@ const ChatAssistant: React.FC = () => {
 
       const response: any = await sendMessage(
           imageFile ? (textToSend || "Analyze this image.") : textToSend, 
-          'standard', 
+          'search', // Force Search Mode by default for online queries
           history, 
           undefined, 
           imageData

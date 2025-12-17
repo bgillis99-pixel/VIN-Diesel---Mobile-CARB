@@ -1,9 +1,9 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
-import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, limit } from "firebase/firestore";
+import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, doc, deleteDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { Truck } from "../types";
 
 // TODO: Replace with your actual Firebase Config from the Firebase Console
-// Go to https://console.firebase.google.com/ -> Project Settings -> General -> Your Apps
 const firebaseConfig = {
   apiKey: "YOUR_FIREBASE_API_KEY",
   authDomain: "your-project.firebaseapp.com",
@@ -43,8 +43,10 @@ export const logoutUser = async () => {
   await firebaseSignOut(auth);
 };
 
+// --- HISTORY & SCANS ---
+
 export const saveScanToCloud = async (userId: string, scanData: any) => {
-  if (!db) return; // Fallback to local handled by component
+  if (!db) return;
   try {
     await addDoc(collection(db, "users", userId, "history"), {
       ...scanData,
@@ -69,6 +71,51 @@ export const getHistoryFromCloud = async (userId: string) => {
     console.error("Error fetching history", e);
     return [];
   }
+};
+
+// --- GARAGE (TRUCKS) ---
+
+export const addTruckToGarage = async (userId: string, truck: Omit<Truck, 'id'>) => {
+  if (!db) return null;
+  try {
+    const docRef = await addDoc(collection(db, "users", userId, "trucks"), truck);
+    return { id: docRef.id, ...truck };
+  } catch (e) {
+    console.error("Error adding truck", e);
+    throw e;
+  }
+};
+
+export const deleteTruckFromGarage = async (userId: string, truckId: string) => {
+  if (!db) return;
+  try {
+    await deleteDoc(doc(db, "users", userId, "trucks", truckId));
+  } catch (e) {
+    console.error("Error deleting truck", e);
+    throw e;
+  }
+};
+
+export const updateTruckStatus = async (userId: string, truckId: string, status: string, lastChecked: number) => {
+  if (!db) return;
+  try {
+    await updateDoc(doc(db, "users", userId, "trucks", truckId), {
+      status,
+      lastChecked
+    });
+  } catch (e) {
+    console.error("Error updating truck", e);
+    throw e;
+  }
+};
+
+export const subscribeToGarage = (userId: string, callback: (trucks: Truck[]) => void) => {
+  if (!db) return () => {};
+  const q = query(collection(db, "users", userId, "trucks"), orderBy("lastChecked", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const trucks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Truck));
+    callback(trucks);
+  });
 };
 
 export { auth, db };

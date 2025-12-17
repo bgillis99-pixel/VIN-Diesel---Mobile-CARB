@@ -185,88 +185,95 @@ const processImageForOCR = (base64Str: string): Promise<string> => {
   });
 };
 
-// --- OFFLINE KNOWLEDGE BASE (Free Fallback) ---
+// --- EXTENDED OFFLINE KNOWLEDGE BASE ---
 const OFFLINE_KNOWLEDGE_BASE = [
   {
-    keywords: ['blocked', 'hold', 'registration', 'dmv', 'renew'],
-    answer: "🔒 **Why is my registration on DMV Hold?**\n\nCommon reasons:\n1. **Unpaid State Fee:** You must pay the $30 annual compliance fee per vehicle at https://cleantruckcheck.arb.ca.gov/.\n2. **Missing Test:** You need a passing Smoke/OBD test submitted within 90 days of your registration date.\n3. **Data Mismatch:** The VIN on the test must match the DMV database exactly."
+    keywords: ['blocked', 'hold', 'registration', 'dmv', 'renew', 'freeze', 'cant register', 'incomplete'],
+    answer: "🔒 **DMV Registration Blocked?**\n\nIf you can't renew, it's usually one of these reasons:\n\n1. **Unpaid Annual Fee:** Have you paid the $30/vehicle fee this year? Go to `cleantruckcheck.arb.ca.gov`.\n2. **Missing Test:** A passing test must be submitted within 90 days before your registration date.\n3. **Pending Data:** Tests take 24-48 hours to clear at DMV after CARB receives them.\n4. **Non-Compliant:** The vehicle has an outstanding enforcement violation."
   },
   {
-    keywords: ['deadline', 'when', 'due', 'date', 'frequency', 'often'],
-    answer: "📅 **Testing Deadlines:**\n\n• **2025-2026:** Most vehicles need to pass a test **Twice a Year** (every 6 months).\n• **2027+:** Increases to **4 times a year**.\n• The deadline is based on your DMV registration expiration date."
+    keywords: ['deadline', 'when', 'due', 'date', 'frequency', 'often', 'schedule', '2025'],
+    answer: "📅 **Testing Deadlines (2025):**\n\n• **Frequency:** Twice a year (Every 6 months).\n• **Deadline:** Based on your DMV registration date. Example: If Reg expires in Dec, tests are due in June and Dec.\n• **2027 Change:** Testing increases to 4 times a year."
   },
   {
-    keywords: ['password', 'login', 'reset', 'access', 'account'],
-    answer: "🔑 **Lost Password:**\n\nWe cannot reset your password. You must do it on the official CARB portal:\nhttps://cleantruckcheck.arb.ca.gov/\n\nClick 'Forgot Password' on their login screen."
+    keywords: ['fee', 'cost', 'price', 'pay', 'charge', 'money', '30'],
+    answer: "💰 **Fees Explained:**\n\n1. **State Compliance Fee:** $30 per vehicle, paid annually directly to CARB online.\n2. **Testing Fee:** Paid to the certified tester (like us). Rates typically range $150-$250 depending on if it's OBD or Smoke.\n3. **Certificate Fee:** There is no extra fee to print the certificate once compliant."
   },
   {
-    keywords: ['cost', 'price', 'fee', 'how much', 'charge'],
-    answer: "💰 **Program Costs:**\n\n1. **CARB Annual Fee:** $30 per vehicle (paid to the State).\n2. **Testing Fee:** Paid to the certified tester. Prices vary by location (typically $150-$250).\n\nCall 617-359-6953 for a quote."
+    keywords: ['obd', 'smoke', 'opacity', 'test type', 'which test', 'psip'],
+    answer: "🚛 **Which Test Do I Need?**\n\n• **2013 & Newer Engines:** You need an **OBD Test** (On-Board Diagnostics scan). No smoke opacity test required unless OBD fails repeatedly.\n• **2012 & Older Engines:** You need a **Smoke Opacity Test** (Tailpipe sensor). Limit is 5% opacity for DPF trucks, higher for older ones."
+  },
+  {
+    keywords: ['password', 'login', 'reset', 'access', 'account', 'locked out'],
+    answer: "🔑 **Account Help:**\n\nWe cannot reset your CARB password. You must visit the official portal:\n`https://cleantruckcheck.arb.ca.gov/`\n\nClick 'Forgot Password'. If that fails, email `hdim@arb.ca.gov`."
+  },
+  {
+    keywords: ['out of state', 'non-california', 'arizona', 'nevada', 'oregon', '7 day', 'pass'],
+    answer: "🌎 **Out-of-State Trucks:**\n\n• If you drive in CA **more than 5 days/year**, you MUST comply (pay fee + test).\n• If you rarely visit, you can buy a **7-Day Pass** ($60) per vehicle. Limit 1 pass per vehicle per year."
+  },
+  {
+    keywords: ['ag', 'farm', 'agriculture', 'exemption', 'harvest'],
+    answer: "🚜 **Agricultural Vehicles:**\n\n• Ag vehicles doing <10,000 miles/year are generally exempt from OBD/Smoke testing but **MUST still pay the $30 fee** and register.\n• Specialized Ag vehicles may have different rules. Check the `CTC-VIS` portal for Ag designation."
+  },
+  {
+    keywords: ['certificate', 'print', 'proof', 'paper', 'card'],
+    answer: "📄 **How to Get My Certificate:**\n\n1. Login to `cleantruckcheck.arb.ca.gov`.\n2. Ensure $30 fee is paid.\n3. Ensure passing test is linked.\n4. Status will turn 'Compliant'.\n5. Click the vehicle -> 'Print Certificate'. Keep this in the cab."
+  },
+  {
+    keywords: ['contact', 'phone', 'email', 'help', 'human', 'support', 'number'],
+    answer: "📞 **Contact Support:**\n\n• **NorCal CARB Mobile (Tester):** 617-359-6953\n• **Official CARB Hotline:** 866-634-3735\n• **Email:** hdim@arb.ca.gov"
   },
   {
     keywords: ['pickup', 'light', 'f250', '2500', 'gas', 'gasoline'],
     answer: "❌ **Wrong Program:**\n\nThe Clean Truck Check ONLY applies to **Diesel** vehicles over **14,000 lbs GVWR**.\n\n• Pickups (F-250/2500) are usually under 14k lbs.\n• Gas vehicles need a BAR Smog Check, not this program."
-  },
-  {
-    keywords: ['contact', 'phone', 'email', 'help', 'human', 'support', 'number'],
-    answer: "📞 **Contact Support:**\n\n• **NorCal CARB Mobile:** 617-359-6953 (Testing & Help)\n• **Official CARB Hotline:** 866-634-3735 (hdim@arb.ca.gov)"
-  },
-  {
-    keywords: ['certificate', 'print', 'proof', 'paper'],
-    answer: "📄 **Compliance Certificate:**\n\nOnce you pay the $30 fee AND pass the smoke test, you can print your certificate instantly from your CTC-VIS account dashboard."
   }
 ];
 
 const findOfflineAnswer = (query: string): string => {
     const lowerQuery = query.toLowerCase();
-    const match = OFFLINE_KNOWLEDGE_BASE.find(item => 
-        item.keywords.some(k => lowerQuery.includes(k))
-    );
+    
+    // Attempt to match
+    const match = OFFLINE_KNOWLEDGE_BASE.find(item => {
+        // Match if any keyword is found
+        return item.keywords.some(k => lowerQuery.includes(k));
+    });
     
     if (match) return match.answer;
     
-    return "ℹ️ **Offline Mode:**\n\nI couldn't match your question to my offline database, but here is a compliance checklist:\n\n1. Did you pay the $30 annual fee?\n2. Is your test less than 90 days old?\n3. Is your GVWR over 14,000 lbs?\n\nFor complex issues, please Text/Call: **617-359-6953**.";
+    // Default Offline Fallback
+    return "ℹ️ **Offline Mode:**\n\nI couldn't match your question to my offline database, but here are 3 tips:\n\n1. **Pay the $30 State Fee:** Login to `cleantruckcheck.arb.ca.gov`.\n2. **Check Deadlines:** Tests are due 2x per year based on DMV reg date.\n3. **Find a Tester:** We can come to you. Call 617-359-6953.\n\n*Connect to the internet for AI search.*";
 };
 
 export const SYSTEM_INSTRUCTION = `
 You are VIN DIESEL, a specialized AI Compliance Officer for the **California Clean Truck Check - Heavy-Duty Inspection and Maintenance (HD I/M) Program**.
 
+**SEARCH PROTOCOL (ONLINE MODE):**
+When the user asks a question and you are using the 'googleSearch' tool, you MUST prioritize information from these two domains:
+1. \`site:cleantruckcheck.arb.ca.gov\` (Official State Portal & FAQs)
+2. \`site:norcalcarbmobile.com\` (Tester Services & Practical Guides)
+
 **YOUR PRIMARY TRAINING DATA & SOURCES:**
-You must base your answers strictly on the Clean Truck Check program found at:
-- https://ww2.arb.ca.gov/our-work/programs/CTC
-- Official CARB Fact Sheets, PDF Guides, and CARB YouTube tutorials related to HD I/M.
-- NorCal CARB Mobile LLC (for practical testing services).
+You must base your answers strictly on the Clean Truck Check program.
+- 2024 was open reporting. 
+- 2025 requires passing tests (Twice a Year) linked to DMV registration.
+- 2027 increases to 4x/year.
+- Fees: $30/year state fee + Tester Fee.
 
-**SCANNING & PHOTO ADVICE (CRITICAL):**
-If a user asks why their VIN scan isn't working or asks how to take a photo:
-1. **OPEN THE DOOR:** Do not take photos through the window glass. The glare makes it unreadable.
-2. **DIRECT SHOT:** Photograph the sticker directly on the door jamb.
-3. **NO ANGLES:** Hold the phone flat and parallel to the sticker.
-4. **NO GLARE:** Block the sun with your body if needed.
+**SCANNING & PHOTO ADVICE:**
+If a user asks about VIN scanning:
+1. Open the door.
+2. Photograph the sticker directly on the door jamb.
+3. Avoid glare.
 
-**STRICT SCOPE & NEGATIVE CONSTRAINTS (DO NOT VIOLATE):**
-1. **NO NUTRITION:** You are NOT a nutritionist. If a user asks about "carbs" in food, reply: "I only handle heavy-duty diesel compliance, not dietary carbohydrates."
-2. **NO GASOLINE / LIGHT DUTY:** You DO NOT handle passenger cars, sedans, pickup trucks under 14,000 lbs, or gasoline vehicles.
-   - If a user asks about a "Honda Civic" or "Smog Check" for a car, reply: "This app is strictly for Heavy-Duty Diesel Trucks (>14,000 lbs). For passenger car smog, please visit the BAR (Bureau of Automotive Repair)."
-
-**VERIFICATION PROTOCOL:**
-If a user uses ambiguous terms like "my car", "smog check", or "vehicle" without specifying the type:
-- **YOU MUST ASK:** "Just to confirm, is this for a Heavy-Duty Diesel vehicle over 14,000 GVWR? I only assist with the Clean Truck Check program for big rigs, Ag equipment, and motorhomes."
-
-**KNOWLEDGE BANK:**
-- **Deadlines:** 2024 was open reporting. 2025 requires passing tests linked to DMV registration dates.
-- **Testing Frequency:** 2025-2026 is 2x/year. 2027+ increases to 4x/year.
-- **Lost Passwords:** Users must reset these at https://cleantruckcheck.arb.ca.gov/.
-- **DMV Hold:** (Formerly called Registration Blocked). Usually due to unpaid annual fees ($30) or missing passing tests.
-- **Contact:** If asked for support email, provide: bryan@norcalcarbmobile.com
+**STRICT SCOPE:**
+- NO Nutrition/Carbs.
+- NO Gasoline vehicles.
+- NO Light Duty (<14k lbs).
 
 **MANDATORY FOOTER:**
 You MUST conclude EVERY single response with this exact line (double line break before it):
 
 "\n\nNeed clarity? Text/Call a Tester: 617-359-6953"
-
-**TONE:**
-Professional, authoritative, yet helpful. You are a regulatory expert.
 `;
 
 export const sendMessage = async (
@@ -281,7 +288,9 @@ export const sendMessage = async (
     let modelName = MODEL_NAMES.FLASH;
     let config: any = { systemInstruction: SYSTEM_INSTRUCTION };
     
-    if (mode === 'search') {
+    // Force search if the user is asking a question and we are in standard/search mode
+    // This satisfies the "have it search STATE SITE" requirement
+    if (mode === 'search' || mode === 'standard') {
       modelName = MODEL_NAMES.FLASH;
       config.tools = [{ googleSearch: {} }];
     } else if (mode === 'maps') {
@@ -299,7 +308,13 @@ export const sendMessage = async (
     if (imageData) {
         currentParts.push({ inlineData: { mimeType: imageData.mimeType, data: imageData.data } });
     }
-    currentParts.push({ text });
+    
+    // Append context to force checking specific sites if in search mode
+    let finalText = text;
+    if (mode === 'search') {
+        finalText = `${text} (Check cleantruckcheck.arb.ca.gov and norcalcarbmobile.com)`;
+    }
+    currentParts.push({ text: finalText });
 
     const response = await ai.models.generateContent({
       model: modelName,
@@ -312,7 +327,7 @@ export const sendMessage = async (
     
     let groundingUrls: Array<{uri: string, title: string}> = [];
     
-    if (mode === 'search') {
+    if (mode === 'search' || mode === 'standard') {
       groundingUrls = groundingChunks
         .filter((c: any) => c.web?.uri)
         .map((c: any) => ({ uri: c.web.uri, title: c.web.title }));
