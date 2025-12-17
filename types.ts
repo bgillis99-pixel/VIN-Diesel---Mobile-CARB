@@ -33,6 +33,7 @@ export interface HistoryItem {
   value: string;
   type: 'VIN' | 'ENTITY' | 'TRUCRS';
   timestamp: number;
+  details?: any; // Added to store scan results
 }
 
 export interface User {
@@ -50,6 +51,20 @@ export interface Lead {
   industry: string;
   emailDraft: string;
   blogDraft: string;
+}
+
+// New Interface for CSV Data
+export interface HotLead {
+  id: string;
+  company: string;
+  phone: string;
+  email: string;
+  address: string;
+  fleetSize: string;
+  status: 'HOT' | 'WARM' | 'COLD';
+  zone: string; // e.g., "Hot (<50mi)"
+  smsTemplate: string;
+  source: string;
 }
 
 export interface RegistrationData {

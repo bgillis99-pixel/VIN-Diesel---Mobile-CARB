@@ -28,10 +28,14 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
   // Tester Search State
   const [zipCode, setZipCode] = useState('');
   const [coverageMessage, setCoverageMessage] = useState('Enter Zip for Local Dispatch');
+  
+  // Dynamic Branding State
+  const [testerName, setTesterName] = useState('Mobile CARB Check');
   const [dispatchPhone, setDispatchPhone] = useState('617-359-6953');
   const [regionLabel, setRegionLabel] = useState('Statewide Network');
   const [estimatedPrice, setEstimatedPrice] = useState('Enter Zip for Estimate');
   const [reviewSnippet, setReviewSnippet] = useState('“Reliable and fast service.”');
+  
   const [locating, setLocating] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState('https://norcalcarbmobile.com');
   
@@ -100,7 +104,13 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
 
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>, isUpload: boolean = false) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    
+    // TRIPLE CHECK: Ensure file exists and is valid
+    if (!file || file.size === 0) {
+        setScanErrorMsg("Upload failed: No valid file selected.");
+        setShowScanHelp(true);
+        return;
+    }
 
     setLoading(true);
     setStatusMessage(isUpload ? 'PROCESSING IMAGE...' : 'SCANNING...');
@@ -109,6 +119,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
     trackEvent('scan_attempt', { type: isUpload ? 'upload' : 'camera' });
     
     try {
+      // Using the working logic from yesterday
       const result = await extractVinFromImage(file);
       
       if (result.vin && result.vin.length >= 11) {
@@ -130,6 +141,7 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
           trackEvent('scan_failed', { reason: 'low_confidence' });
       }
     } catch (err) {
+      console.error(err);
       setScanErrorMsg("Error processing image. Please type manually.");
       setShowScanHelp(true);
       trackEvent('scan_error');
@@ -151,24 +163,60 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
   const updateCoverage = (val: string) => {
       setZipCode(val);
       
+      // Defaults
+      let name = 'Mobile CARB Check';
       let phone = '617-359-6953';
-      let msg = '100% Mobile Statewide';
+      let msg = 'Statewide Dispatch';
       let region = 'California Statewide';
       let price = 'Enter Zip for Estimate';
-      let review = '“Saved us from a DMV registration block last minute.” — Mike T., Owner-Operator';
+      let review = '“Saved us from a DMV registration block last minute.”';
 
       if (val.length >= 3) {
           const prefix = parseInt(val.substring(0, 3));
-          // ... (Keep existing logic for regions) ...
-          const isCentralValley = (prefix >= 936 && prefix <= 938) || (prefix >= 952 && prefix <= 953);
-          if (isCentralValley) {
-              phone = '209-818-1371';
-              msg = "✅ Local Central Valley Dispatch";
-              region = "Stockton • Fresno • Modesto";
+          
+          // --- REGION 1: SOCAL (900-931, 934-935) ---
+          if ((prefix >= 900 && prefix <= 931) || prefix === 934 || prefix === 935) {
+              name = "SoCal CARB Mobile";
+              phone = "617-359-6953"; // Central Dispatch
+              price = "OBD $125 • Smoke $250 • RV $300";
+              
+              if (prefix >= 900 && prefix <= 908) { region = "Los Angeles County"; msg = "✅ Local LA Dispatch"; }
+              else if (prefix >= 919 && prefix <= 921) { region = "San Diego County"; msg = "✅ Local SD Dispatch"; }
+              else if (prefix >= 922 && prefix <= 925) { region = "Inland Empire / Riverside"; msg = "✅ Local IE Dispatch"; }
+              else if (prefix >= 926 && prefix <= 928) { region = "Orange County"; msg = "✅ Local OC Dispatch"; }
+              else if (prefix === 934) { region = "Santa Barbara / SLO"; msg = "✅ Central Coast Dispatch"; }
+              else { region = "Southern California"; msg = "✅ SoCal Regional Dispatch"; }
           }
-          // ... (Simplified for brevity, logic remains same) ...
+          
+          // --- REGION 2: VALLEY (932-933, 936-938, 952-953) ---
+          // Bakersfield (932, 933) to Turlock (953)
+          else if ((prefix >= 932 && prefix <= 933) || (prefix >= 936 && prefix <= 938) || (prefix >= 952 && prefix <= 953)) {
+              name = "Valley Clean Truck Check Mobile";
+              phone = "209-818-1371"; // Valley Direct Line
+              price = "OBD $99 • Smoke $199 • RV $250";
+              
+              if (prefix === 932 || prefix === 933) { region = "Kern County (Bakersfield)"; msg = "✅ Local Kern Dispatch"; }
+              else if (prefix >= 936 && prefix <= 938) { region = "Fresno / Madera / Tulare"; msg = "✅ Local Central Valley Dispatch"; }
+              else if (prefix >= 952 && prefix <= 953) { region = "Stanislaus / Merced (Turlock)"; msg = "✅ Local Modesto/Turlock Dispatch"; }
+              else { region = "Central Valley"; }
+          }
+          
+          // --- REGION 3: NORCAL (939, 940-951, 954-961) ---
+          // North of Turlock to Oregon
+          else if (prefix === 939 || (prefix >= 940 && prefix <= 951) || (prefix >= 954 && prefix <= 961)) {
+              name = "NorCal CARB Mobile";
+              phone = "916-890-4427"; // Sac/North Line
+              price = "OBD $150 • Smoke $250 • RV $300";
+              
+              if (prefix >= 956 && prefix <= 958) { region = "Sacramento County"; msg = "✅ Local Sac Dispatch"; }
+              else if (prefix === 960) { region = "Shasta / Redding (North)"; msg = "✅ Local Redding Dispatch"; }
+              else if (prefix >= 940 && prefix <= 951) { region = "Bay Area / Silicon Valley"; msg = "✅ Bay Area Dispatch (Tolls Apply)"; phone = "415-900-8563"; }
+              else if (prefix >= 954 && prefix <= 955) { region = "North Coast (Sonoma/Mendo)"; msg = "✅ North Coast Dispatch"; }
+              else { region = "Northern California"; msg = "✅ NorCal Regional Dispatch"; }
+          }
       }
 
+      setTesterName(name);
       setDispatchPhone(phone);
       setCoverageMessage(msg);
       setRegionLabel(region);
@@ -189,8 +237,18 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
 
       navigator.geolocation.getCurrentPosition((pos) => {
           clearTimeout(timeoutId);
-          // ... (Keep existing logic) ...
-          updateCoverage('90012'); // Dummy for example, keep original logic
+          // Simple rough conversion of Latitude to Zip Prefix for Demo
+          const lat = pos.coords.latitude;
+          let detectedZip = '90012'; 
+          
+          if (lat > 39.0) detectedZip = '96001'; // Redding
+          else if (lat > 38.5) detectedZip = '95814'; // Sac
+          else if (lat > 37.8) detectedZip = '95380'; // Turlock
+          else if (lat > 36.5) detectedZip = '93721'; // Fresno
+          else if (lat > 35.3) detectedZip = '93301'; // Bakersfield
+          else if (lat < 34.5) detectedZip = '90012'; // LA
+
+          updateCoverage(detectedZip);
           setLocating(false);
       }, (err) => {
           clearTimeout(timeoutId);
@@ -235,17 +293,108 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
 
   // --- FULL PAGE TESTER SEARCH VIEW ---
   if (showTesterSearch) {
-      // ... (Keep existing Tester Search UI) ...
+      const smsBody = `I am in Zip ${zipCode || '[ZIP]'}. Do I need an OBD or Smoke (OVI) test?`;
+      
       return (
-          <div className="fixed inset-0 z-50 bg-[#f8f9fa] dark:bg-gray-900 overflow-y-auto">
-             <div className="bg-[#003366] text-white p-4">
-                 <button onClick={() => setShowTesterSearch(false)}>Back</button>
-                 <h2>Find Tester</h2>
-             </div>
-             {/* ... Simplified for brevity, assume original UI ... */}
-             <div className="p-4">
-                <p>Tester search interface here...</p>
-             </div>
+          <div className="fixed inset-0 z-50 bg-[#f8f9fa] dark:bg-gray-900 overflow-y-auto animate-in fade-in slide-in-from-right duration-300">
+              {/* Header */}
+              <div className="bg-[#003366] dark:bg-gray-900 text-white p-4 shadow-md sticky top-0 z-20">
+                  <div className="max-w-md mx-auto flex flex-col">
+                      <button onClick={() => setShowTesterSearch(false)} className="self-start flex items-center gap-2 font-bold text-sm hover:text-green-400 transition-colors mb-4">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                          BACK TO HOME
+                      </button>
+                      <h2 className="text-3xl font-black">Find Certified Tester</h2>
+                      <p className="text-sm opacity-80 mt-1">Locate Mobile Opacity & OBD Testers</p>
+                  </div>
+              </div>
+
+              <div className="p-4 space-y-6 max-w-md mx-auto pb-24">
+                  {/* Search Bar */}
+                  <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                      <label className="block text-xs font-bold text-gray-700 uppercase mb-3">Search by Location</label>
+                      <div className="flex gap-3">
+                          <input 
+                              type="tel" 
+                              placeholder="Enter Zip Code" 
+                              value={zipCode} 
+                              onChange={handleZipSearch}
+                              className="flex-1 p-4 text-xl font-bold border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-[#003366] outline-none dark:bg-gray-700 dark:text-white"
+                              maxLength={5}
+                          />
+                          <button 
+                              onClick={handleUseLocation}
+                              disabled={locating}
+                              className="bg-[#003366] text-white px-6 rounded-xl font-bold flex items-center justify-center disabled:opacity-50"
+                          >
+                              {locating ? <span className="animate-spin text-xl">⌛</span> : <span className="text-xl">📍</span>}
+                          </button>
+                      </div>
+                  </div>
+
+                  {/* Results Card */}
+                  <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border-2 border-[#15803d] overflow-hidden relative transform transition-all">
+                      <div className="bg-[#15803d] text-white text-xs font-bold px-4 py-2 absolute top-0 right-0 rounded-bl-2xl">
+                          RECOMMENDED
+                      </div>
+                      
+                      <div className="p-6">
+                          <div className="flex items-start justify-between mb-6">
+                              <div>
+                                  {/* DYNAMIC TESTER NAME */}
+                                  <h3 className="text-2xl font-black text-[#003366] dark:text-white leading-tight">{testerName}</h3>
+                                  <p className="text-sm font-bold text-gray-700 dark:text-gray-400 mt-1">{regionLabel}</p>
+                                  <div className="flex items-center gap-1 mt-2">
+                                      <span className="text-yellow-400 text-lg">★★★★★</span>
+                                      <span className="text-xs text-blue-600 font-bold underline cursor-pointer">4.9 (Google Reviews)</span>
+                                  </div>
+                              </div>
+                              <img src="https://api.qrserver.com/v1/create-qr-code/?size=64x64&data=Norcal&color=003366" className="w-16 h-16 rounded-xl opacity-90" alt="Logo" />
+                          </div>
+
+                          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-2xl mb-6 border border-gray-100 dark:border-gray-600">
+                              <p className="text-[10px] font-bold text-gray-700 uppercase mb-1">Estimated Pricing</p>
+                              <p className="text-lg font-black text-[#15803d] dark:text-green-400 leading-tight">{estimatedPrice}</p>
+                              <p className="text-[10px] text-gray-700 italic mt-1">*Includes travel & certificate fees</p>
+                          </div>
+
+                          <div className="mb-6 relative">
+                              <span className="absolute -top-3 -left-1 text-4xl text-gray-200">“</span>
+                              <p className="text-sm italic text-gray-700 dark:text-gray-300 pl-6 relative z-10 leading-relaxed">
+                                  {reviewSnippet}
+                              </p>
+                          </div>
+
+                          <div className="flex flex-col gap-3">
+                              <a href={`tel:${dispatchPhone.replace(/-/g, '')}`} className="w-full py-4 bg-[#003366] text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-[#002244] transition-colors" onClick={() => trackEvent('call_dispatch', { phone: dispatchPhone })}>
+                                  <span>📞 CALL DISPATCH</span>
+                              </a>
+                              <div className="flex gap-3">
+                                  <a href={`sms:${dispatchPhone.replace(/-/g, '')}?body=${encodeURIComponent(smsBody)}`} className="flex-1 py-3 bg-white border-2 border-[#003366] text-[#003366] font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50" onClick={() => trackEvent('text_dispatch', { phone: dispatchPhone })}>
+                                      <span>💬 TEXT</span>
+                                  </a>
+                                  <a href={`mailto:bryan@norcalcarbmobile.com?subject=Smoke Test Request&body=${encodeURIComponent(smsBody)}`} className="flex-1 py-3 bg-white border-2 border-[#003366] text-[#003366] font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50" onClick={() => trackEvent('email_dispatch')}>
+                                      <span>✉️ EMAIL</span>
+                                  </a>
+                              </div>
+                              <a href={websiteUrl} target="_blank" className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-[#003366] dark:text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors mt-1" onClick={() => trackEvent('visit_website')}>
+                                  <span>🌐 VISIT WEBSITE</span>
+                              </a>
+                          </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 border-t border-gray-100 dark:border-gray-700">
+                          <p className="text-[10px] font-bold text-gray-700 uppercase mb-2">Services Provided</p>
+                          <div className="flex flex-wrap gap-2">
+                              {['SAE J1667 Smoke', 'OBD Testing', 'PSIP Annual', 'Opacity Test', '100% Mobile Statewide'].map(tag => (
+                                  <span key={tag} className="text-[10px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 px-2 py-1 rounded text-gray-700 dark:text-gray-300 font-bold">
+                                      {tag}
+                                  </span>
+                              ))}
+                          </div>
+                      </div>
+                  </div>
+              </div>
           </div>
       );
   }
