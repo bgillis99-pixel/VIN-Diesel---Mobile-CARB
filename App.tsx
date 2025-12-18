@@ -88,19 +88,40 @@ const App: React.FC = () => {
     setUser({ ...user, history: [newItem, ...user.history] });
   };
 
+  // Apple/Tesla Style Persistent Utility Bar
+  const StickyUtilityBar = () => (
+    <div className="flex gap-2 p-3 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 dark:border-gray-800">
+        <button 
+          onClick={() => {
+            trackEvent('top_tester_click');
+            // We need to trigger the tester search in VinChecker. 
+            // For persistence, we'll use a simple session storage or state lift if needed.
+            // Simplified: Navigate home first
+            setCurrentView(AppView.HOME);
+            setTimeout(() => {
+                const btn = document.getElementById('find-tester-trigger');
+                btn?.click();
+            }, 50);
+          }}
+          className="flex-1 bg-white dark:bg-gray-800 border-2 border-navy dark:border-blue-400 text-navy dark:text-blue-400 py-2.5 rounded-xl font-black text-[10px] tracking-widest uppercase shadow-sm active:scale-95 transition-all"
+        >
+            📍 FIND TESTER
+        </button>
+        <button 
+          onClick={() => setShowInstall(true)}
+          className="flex-1 bg-white dark:bg-gray-800 border-2 border-navy dark:border-blue-400 text-navy dark:text-blue-400 py-2.5 rounded-xl font-black text-[10px] tracking-widest uppercase shadow-sm active:scale-95 transition-all"
+        >
+            📲 DOWNLOAD APP
+        </button>
+    </div>
+  );
+
   return (
     <div className={darkMode ? 'dark' : ''}>
     <div className="min-h-screen flex flex-col bg-[#f8f9fa] dark:bg-gray-900 font-sans text-navy dark:text-gray-100 transition-colors duration-200">
       
-      {/* PERSISTENT TOP UTILITY BAR */}
-      <div className="bg-green dark:bg-green-900 text-white flex justify-between items-center px-4 py-2 z-40 sticky top-0 shadow-sm border-b border-white/10">
-          <button onClick={() => setShowInstall(true)} className="text-[10px] font-black tracking-tighter uppercase flex items-center gap-1">
-              <span>📲</span> INSTALL APP
-          </button>
-          <a href="tel:6173596953" className="text-[10px] font-black tracking-tighter uppercase flex items-center gap-1">
-              <span>📞</span> IMMEDIATE TESTING
-          </a>
-      </div>
+      {/* PERSISTENT TOP UTILITY BAR (Apple/Tesla Style) */}
+      <StickyUtilityBar />
 
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 py-3 px-4 text-center shadow-sm z-30 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-colors">
@@ -174,8 +195,13 @@ const App: React.FC = () => {
                 ))}
             </div>
             
+            {/* Repeated Persistent Bar at bottom for convenience */}
+            <div className="pt-8">
+                <StickyUtilityBar />
+            </div>
+
             {/* Government Disclaimer (Clean Text) */}
-            <div className="text-center px-4">
+            <div className="text-center px-4 mt-8">
                 <p className="text-[8px] text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-relaxed">
                     © 2026 SILVERBACK GROUP AND MLB MARKETING LLC<br/>
                     NOT A GOVERNMENT AGENCY • PUBLIC RECORD DATA ONLY
@@ -184,7 +210,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Share Modal Replacement / Install Instruction */}
+      {/* Install Instruction Modal */}
       {showInstall && (
           <div className="fixed inset-0 z-[150] bg-navy/90 backdrop-blur-md flex items-end sm:items-center justify-center p-4 animate-in fade-in slide-in-from-bottom-20 duration-300" onClick={() => setShowInstall(false)}>
               <div className="bg-white dark:bg-gray-800 p-8 rounded-t-[3rem] sm:rounded-[3rem] max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
