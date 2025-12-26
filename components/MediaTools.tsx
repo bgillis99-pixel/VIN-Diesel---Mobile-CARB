@@ -1,7 +1,6 @@
 
 import React, { useState, useRef } from 'react';
 import { analyzeMedia, generateAppImage, batchAnalyzeTruckImages } from '../services/geminiService';
-import { ASPECT_RATIOS, IMAGE_SIZES } from '../constants';
 import { trackEvent } from '../services/analytics';
 import { ExtractedTruckData } from '../types';
 
@@ -10,7 +9,7 @@ const MediaTools: React.FC = () => {
   const [resultText, setResultText] = useState('');
   const [extractedData, setExtractedData] = useState<ExtractedTruckData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [analysisPrompt, setAnalysisPrompt] = useState('Inspect this label for CARB EFN codes.');
+  const [isDragging, setIsDragging] = useState(false);
   const [genPrompt, setGenPrompt] = useState('A professional fleet truck with clean emission decals');
   const [genImage, setGenImage] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -21,6 +20,27 @@ const MediaTools: React.FC = () => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       setSelectedFiles(prev => [...prev, ...files]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    if (files.length > 0) {
+      setSelectedFiles(prev => [...prev, ...files]);
+      trackEvent('media_drop_files', { count: files.length });
     }
   };
 
@@ -107,20 +127,32 @@ Generated via Model CARB Compliance App
                         </div>
                     </div>
                     <p className="text-[11px] text-gray-500 leading-relaxed font-medium">
-                        Upload photos of: **VIN Plate**, **Engine Tag (ECL)**, **Odometer**, and **Registration**. 
+                        Upload or **Drop** photos of: **VIN Plate**, **Engine Tag**, **Odometer**, and **Registration**. 
                         Gemini 3 Pro will extract all data for CRM entry.
                     </p>
                 </div>
 
-                {/* FILE SELECTION AREA */}
+                {/* FILE SELECTION / DROP ZONE */}
                 <div className="space-y-4">
-                    <button 
+                    <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`w-full group glass p-10 rounded-[3rem] flex flex-col items-center justify-center gap-3 active-haptic border transition-all duration-300 ${
+                          isDragging ? 'border-carb-accent bg-carb-accent/10 scale-[1.02]' : 'border-white/5 hover:bg-white/5'
+                        }`}
                         onClick={() => multiFileInputRef.current?.click()}
-                        className="w-full group glass p-10 rounded-[3rem] flex flex-col items-center justify-center gap-3 active-haptic border border-white/5 hover:bg-white/5"
                     >
-                        <div className="text-4xl group-hover:scale-110 transition-transform">➕</div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 italic group-hover:text-white">Add Photo(s)</span>
-                    </button>
+                        <div className={`text-5xl transition-transform ${isDragging ? 'scale-125 animate-bounce' : 'group-hover:scale-110'}`}>
+                          {isDragging ? '📥' : '➕'}
+                        </div>
+                        <div className="text-center space-y-1">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 italic block group-hover:text-white">
+                            {isDragging ? 'Release to Scan' : 'Drop Photos or Click to Add'}
+                          </span>
+                          <span className="text-[8px] font-bold text-gray-700 uppercase tracking-widest block italic">Support Google Photos, iOS, Android</span>
+                        </div>
+                    </div>
                     <input 
                       type="file" 
                       multiple 
@@ -134,11 +166,14 @@ Generated via Model CARB Compliance App
                       <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
                         <div className="flex flex-wrap gap-2 justify-center">
                           {selectedFiles.map((f, i) => (
-                            <div key={i} className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 glass">
+                            <div key={i} className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 glass shadow-lg">
                               <img src={URL.createObjectURL(f)} className="w-full h-full object-cover" />
                               <button 
-                                onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))}
-                                className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity font-black text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedFiles(prev => prev.filter((_, idx) => idx !== i));
+                                }}
+                                className="absolute inset-0 bg-black/60 flex items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity font-black text-[8px] uppercase tracking-tighter"
                               >
                                 REMOVE
                               </button>
@@ -163,8 +198,8 @@ Generated via Model CARB Compliance App
                     <div className="glass p-10 rounded-[3rem] text-center space-y-4 border border-blue-500/10">
                         <div className="w-12 h-12 border-4 border-carb-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
                         <div>
-                            <p className="text-sm font-black text-white italic">ENGINEERING DATA...</p>
-                            <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black mt-1">Cross-referencing multiple sensors</p>
+                            <p className="text-sm font-black text-white italic uppercase">Engineering Data...</p>
+                            <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black mt-1 italic">Cross-referencing multiple sensors</p>
                         </div>
                     </div>
                 )}
