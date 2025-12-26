@@ -71,10 +71,11 @@ const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareAp
           setEditedVin(result.vin);
           setSearchMode('VIN'); 
       } else {
-          alert("Sensor scan unclear. Please use manual entry.");
+          alert("Optical sensor couldn't identify a valid VIN.\n\nTips for a better scan:\n• Ensure the label is clean and dry\n• Avoid direct glare or shadows\n• Hold the camera steady and close\n\nAlternatively, please use the Manual Entry field below.");
       }
     } catch (err) {
-      alert("Diagnostic Error.");
+      console.error("Diagnostic error during scan:", err);
+      alert("Intelligence Link Interrupted: Image analysis failed. This can happen due to extremely low lighting, motion blur, or temporary connectivity issues. Please try again with a clearer photo or use Manual Entry.");
     } finally {
       setLoading(false);
       if(cameraInputRef.current) cameraInputRef.current.value = '';

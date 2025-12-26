@@ -3,6 +3,7 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { MODEL_NAMES } from "../constants";
 import { Lead, ImageGenerationConfig, AnalysisType, RegistrationData, ExtractedTruckData } from "../types";
 
+// Always initialize with process.env.API_KEY using a named parameter
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- VIN VALIDATION LOGIC ---
@@ -78,14 +79,20 @@ export const sendMessage = async (
 ) => {
   try {
     let modelName = MODEL_NAMES.FLASH;
+    // Maps grounding is only supported in Gemini 2.5 series models
+    if (mode === 'maps') {
+      modelName = 'gemini-2.5-flash-preview-09-2025';
+    }
+
     let config: any = { 
         systemInstruction: SYSTEM_INSTRUCTION,
+        // Ensure tools are used correctly. googleMaps can be used with googleSearch but not other tools.
         tools: mode === 'maps' ? [{ googleMaps: {} }] : (mode === 'search' || mode === 'standard' ? [{ googleSearch: {} }] : [])
     };
     
     if (mode === 'thinking') {
       modelName = MODEL_NAMES.PRO;
-      config.thinkingConfig = { thinkingBudget: 32768 }; // Max budget for deep reasoning
+      config.thinkingConfig = { thinkingBudget: 32768 }; // Max budget for deep reasoning on gemini-3-pro-preview
     } else if (imageData) {
       modelName = MODEL_NAMES.PRO; // Use Pro for any image-related understanding
     }
@@ -120,6 +127,7 @@ export const sendMessage = async (
         .filter((u: any) => u !== null);
     }
 
+    // Correctly using response.text property
     return {
       text: response.text || "I couldn't generate a response.",
       groundingUrls,
@@ -150,8 +158,9 @@ export const findTestersNearby = async (zipCode: string, location?: { lat: numbe
       };
     }
 
+    // Maps grounding is only supported in Gemini 2.5 series models.
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', // Maps grounding is supported on 2.5
+      model: 'gemini-2.5-flash-preview-09-2025',
       contents: prompt,
       config
     });
@@ -221,25 +230,35 @@ export const batchAnalyzeTruckImages = async (files: File[]): Promise<ExtractedT
     parts.push({ inlineData: { mimeType: file.type, data: b64 } });
   }
 
-  const prompt = `Analyze these images of a heavy-duty diesel truck (VIN plate, Odometer, Engine Tag, Registration Card). 
-  Extract the following information into a structured JSON object. If a field is not found, leave it empty.
-  - vin (17 characters)
-  - licensePlate
-  - mileage (Odometer reading)
-  - registeredOwner (Company Name)
-  - contactName
-  - contactEmail
-  - contactPhone
-  - engineFamilyName (EFN)
-  - engineManufacturer
-  - engineModel
-  - engineYear
-  - eclCondition (Visible, readable, damaged?)
-  - dotNumber
-  - inspectionDate
-  - inspectionLocation
+  const prompt = `You are a high-fidelity diagnostic engineer. Analyze these technical assets of a heavy-duty diesel truck (VIN plate, Odometer, Engine Tag, Registration Card). 
+  Extract precisely every detail into the structured JSON object. 
   
-  Ensure VIN is validated and cleaned.`;
+  CRITICAL FIELDS:
+  - vin: Must be the 17-character sequence. Clean and validate.
+  - mileage: Extract the numerical digits from the odometer photo.
+  - engineFamilyName: Also known as EFN. Found on the emission label.
+  - eclCondition: Report if label is 'Legible/Clean', 'Damaged', or 'Missing'.
+  - registeredOwner: Full company name from the registration document.
+  - dotNumber: Extract USDOT number if visible.
+  
+  JSON SCHEMA:
+  {
+    "vin": "string",
+    "licensePlate": "string",
+    "mileage": "string",
+    "registeredOwner": "string",
+    "contactName": "string",
+    "contactEmail": "string",
+    "contactPhone": "string",
+    "engineFamilyName": "string",
+    "engineManufacturer": "string",
+    "engineModel": "string",
+    "engineYear": "string",
+    "eclCondition": "string",
+    "dotNumber": "string",
+    "inspectionDate": "string",
+    "inspectionLocation": "string"
+  }`;
 
   parts.push({ text: prompt });
 
@@ -325,18 +344,40 @@ export const analyzeMedia = async (file: File, prompt: string, type: 'image' | '
   return response.text || "Analysis failed.";
 };
 
+/**
+ * Generate images using Gemini.
+ * Uses gemini-2.5-flash-image by default. 
+ * Requires user API key selection via window.aistudio for gemini-3-pro-image-preview.
+ */
 export const generateAppImage = async (prompt: string, config: ImageGenerationConfig): Promise<string> => {
+  let model = 'gemini-2.5-flash-image';
+  
+  // High quality requests trigger gemini-3-pro-image-preview and the mandatory key selection dialog
+  if (config.size === '2K' || config.size === '4K') {
+      model = MODEL_NAMES.PRO_IMAGE;
+      if (typeof window !== 'undefined' && window.aistudio) {
+          const hasKey = await window.aistudio.hasSelectedApiKey();
+          if (!hasKey) {
+              await window.aistudio.openSelectKey();
+              // Assume success per race condition guideline
+          }
+      }
+  }
+
+  // Use a fresh instance right before call as per guidelines
   const imageAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await imageAi.models.generateContent({
-    model: MODEL_NAMES.PRO_IMAGE,
+    model: model,
     contents: { parts: [{ text: prompt }] },
     config: {
         imageConfig: {
             aspectRatio: config.aspectRatio,
-            imageSize: config.size
+            ...(model === MODEL_NAMES.PRO_IMAGE ? { imageSize: config.size } : {})
         }
     }
   });
+  
+  // Find the image part in the response candidates
   for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
   }

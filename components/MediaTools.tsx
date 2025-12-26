@@ -37,14 +37,17 @@ const MediaTools: React.FC = () => {
     e.preventDefault();
     setIsDragging(false);
     
-    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer.files).filter((file: File) => file.type.startsWith('image/'));
     if (files.length > 0) {
       setSelectedFiles(prev => [...prev, ...files]);
       trackEvent('media_drop_files', { count: files.length });
     }
   };
 
-  const clearFiles = () => setSelectedFiles([]);
+  const clearFiles = () => {
+    setSelectedFiles([]);
+    setExtractedData(null);
+  };
 
   const runBatchAnalysis = async () => {
     if (selectedFiles.length === 0) return;
@@ -62,41 +65,61 @@ const MediaTools: React.FC = () => {
     }
   };
 
-  const generateEmailBody = (data: ExtractedTruckData) => {
+  const generateReportText = (data: ExtractedTruckData) => {
     return `
-FOR OVI CRM EXTRACTION - TRUCK DATA REPORT
------------------------------------------
-Mileage: ${data.mileage || 'N/A'}
+MODEL CARB PROTOCOL - FLEET INTELLIGENCE REPORT
+Generated: ${new Date().toLocaleString()}
+--------------------------------------------------
+
+TRUCK IDENTITY
+Owner: ${data.registeredOwner || 'UNKNOWN'}
 VIN: ${data.vin || 'N/A'}
-License Plate #: ${data.licensePlate || 'N/A'}
-Registered Owner: ${data.registeredOwner || 'N/A'}
-Contact Name: ${data.contactName || 'N/A'}
-Contact Email: ${data.contactEmail || 'N/A'}
-Contact Phone: ${data.contactPhone || 'N/A'}
-DOT Number: ${data.dotNumber || 'N/A'}
+Plate: ${data.licensePlate || 'N/A'}
+DOT #: ${data.dotNumber || 'N/A'}
 
-EMISSION CONTROL LABEL (ECL) INFORMATION
------------------------------------------
+ENGINE SPECIFICATIONS
+EFN: ${data.engineFamilyName || 'N/A'}
+Manufacturer: ${data.engineManufacturer || 'N/A'}
+Model: ${data.engineModel || 'N/A'}
+Year: ${data.engineYear || 'N/A'}
 ECL Condition: ${data.eclCondition || 'N/A'}
-Engine Family Name (EFN): ${data.engineFamilyName || 'N/A'}
-Engine Manufacturer: ${data.engineManufacturer || 'N/A'}
-Engine Model: ${data.engineModel || 'N/A'}
-Engine Year: ${data.engineYear || 'N/A'}
 
-INSPECTION DETAILS
------------------------------------------
-Date of Inspection: ${data.inspectionDate || new Date().toLocaleDateString()}
+OPERATIONAL DATA
+Current Mileage: ${data.mileage || 'N/A'}
+Inspection Date: ${data.inspectionDate || 'N/A'}
 Location: ${data.inspectionLocation || 'N/A'}
 
-Generated via Model CARB Compliance App
-    `.trim();
+CONTACT DETAILS
+Contact Name: ${data.contactName || 'N/A'}
+Email: ${data.contactEmail || 'N/A'}
+Phone: ${data.contactPhone || 'N/A'}
+
+--------------------------------------------------
+CONFIDENTIAL - OVI CRM SYNC READY
+`.trim();
+  };
+
+  const handleDownload = () => {
+    if (!extractedData) return;
+    const text = generateReportText(extractedData);
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Truck_Report_${extractedData.vin || 'Unknown'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    trackEvent('report_download');
   };
 
   const handleEmailToDispatch = () => {
     if (!extractedData) return;
-    const body = generateEmailBody(extractedData);
+    const body = generateReportText(extractedData);
     const subject = `OVI CRM EXTRACTION: ${extractedData.registeredOwner || 'New Truck'} - ${extractedData.vin?.slice(-6) || 'Report'}`;
     window.location.href = `mailto:bgillis99@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    trackEvent('email_dispatch');
   };
 
   return (
@@ -118,41 +141,43 @@ Generated via Model CARB Compliance App
       <div className="space-y-6">
         {activeTab === 'analyze' && (
             <div className="space-y-6">
-                <div className="glass p-8 rounded-[3rem] border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]">
+                <div className="glass p-8 rounded-[3rem] border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.1)] relative overflow-hidden">
+                    <div className="absolute -top-4 -right-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl"></div>
                     <div className="flex items-center gap-3 mb-4">
-                        <span className="text-2xl">📸</span>
+                        <span className="text-2xl">🛰️</span>
                         <div>
-                            <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] italic">OVI Multi-Scan</p>
-                            <h3 className="text-xl font-black tracking-tighter text-white uppercase italic">Batch Extractor</h3>
+                            <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] italic">Intelligence Suite</p>
+                            <h3 className="text-xl font-black tracking-tighter text-white uppercase italic">Ultra Batch Extractor</h3>
                         </div>
                     </div>
                     <p className="text-[11px] text-gray-500 leading-relaxed font-medium">
-                        Upload or **Drop** photos of: **VIN Plate**, **Engine Tag**, **Odometer**, and **Registration**. 
-                        Gemini 3 Pro will extract all data for CRM entry.
+                        Advanced computer vision for fleet onboarding. Drop your **VIN plates**, **engine labels**, and **registrations** for full extraction.
                     </p>
                 </div>
 
                 {/* FILE SELECTION / DROP ZONE */}
                 <div className="space-y-4">
-                    <div
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                        className={`w-full group glass p-10 rounded-[3rem] flex flex-col items-center justify-center gap-3 active-haptic border transition-all duration-300 ${
-                          isDragging ? 'border-carb-accent bg-carb-accent/10 scale-[1.02]' : 'border-white/5 hover:bg-white/5'
-                        }`}
-                        onClick={() => multiFileInputRef.current?.click()}
-                    >
-                        <div className={`text-5xl transition-transform ${isDragging ? 'scale-125 animate-bounce' : 'group-hover:scale-110'}`}>
-                          {isDragging ? '📥' : '➕'}
+                    {!extractedData && (
+                        <div
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            className={`w-full group glass p-10 rounded-[3rem] flex flex-col items-center justify-center gap-3 active-haptic border transition-all duration-500 cursor-pointer ${
+                              isDragging ? 'border-carb-accent bg-carb-accent/20 scale-[1.02] shadow-[0_0_30px_rgba(59,130,246,0.3)]' : 'border-white/5 hover:bg-white/5'
+                            }`}
+                            onClick={() => multiFileInputRef.current?.click()}
+                        >
+                            <div className={`text-5xl transition-all duration-500 ${isDragging ? 'scale-125 animate-pulse text-carb-accent' : 'group-hover:scale-110'}`}>
+                              {isDragging ? '💎' : '➕'}
+                            </div>
+                            <div className="text-center space-y-1">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 italic block group-hover:text-white transition-colors">
+                                {isDragging ? 'Extracting High-Res Data...' : 'Drop Intelligence Assets or Click'}
+                              </span>
+                              <span className="text-[8px] font-bold text-gray-700 uppercase tracking-widest block italic">Gemini 3 Pro Multimodal Engine</span>
+                            </div>
                         </div>
-                        <div className="text-center space-y-1">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 italic block group-hover:text-white">
-                            {isDragging ? 'Release to Scan' : 'Drop Photos or Click to Add'}
-                          </span>
-                          <span className="text-[8px] font-bold text-gray-700 uppercase tracking-widest block italic">Support Google Photos, iOS, Android</span>
-                        </div>
-                    </div>
+                    )}
                     <input 
                       type="file" 
                       multiple 
@@ -162,18 +187,18 @@ Generated via Model CARB Compliance App
                       accept="image/*" 
                     />
 
-                    {selectedFiles.length > 0 && (
+                    {selectedFiles.length > 0 && !extractedData && (
                       <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
                         <div className="flex flex-wrap gap-2 justify-center">
                           {selectedFiles.map((f, i) => (
-                            <div key={i} className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 glass shadow-lg">
+                            <div key={i} className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 glass shadow-xl group">
                               <img src={URL.createObjectURL(f)} className="w-full h-full object-cover" />
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedFiles(prev => prev.filter((_, idx) => idx !== i));
                                 }}
-                                className="absolute inset-0 bg-black/60 flex items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity font-black text-[8px] uppercase tracking-tighter"
+                                className="absolute inset-0 bg-red-600/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity font-black text-[8px] uppercase"
                               >
                                 REMOVE
                               </button>
@@ -181,13 +206,13 @@ Generated via Model CARB Compliance App
                           ))}
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={clearFiles} className="flex-1 py-4 glass text-gray-500 font-black rounded-[1.5rem] uppercase text-[9px] tracking-widest active-haptic italic">Clear All</button>
+                          <button onClick={clearFiles} className="flex-1 py-4 glass text-gray-500 font-black rounded-[1.5rem] uppercase text-[9px] tracking-widest active-haptic italic">Discard</button>
                           <button 
                             onClick={runBatchAnalysis} 
                             disabled={loading}
                             className="flex-[2] py-4 bg-carb-accent text-white font-black rounded-[1.5rem] uppercase text-[9px] tracking-widest shadow-xl shadow-blue-500/20 active-haptic italic"
                           >
-                            {loading ? 'PROCESSING INTELLIGENCE...' : 'ANALYZE BATCH'}
+                            {loading ? 'CALCULATING PROBABILITIES...' : 'LAUNCH EXTRACTION'}
                           </button>
                         </div>
                       </div>
@@ -195,82 +220,98 @@ Generated via Model CARB Compliance App
                 </div>
 
                 {loading && (
-                    <div className="glass p-10 rounded-[3rem] text-center space-y-4 border border-blue-500/10">
-                        <div className="w-12 h-12 border-4 border-carb-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <div className="glass p-12 rounded-[3rem] text-center space-y-6 border border-blue-500/20 shadow-2xl relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
+                        <div className="w-16 h-16 border-b-2 border-l-2 border-carb-accent rounded-full animate-spin mx-auto shadow-[0_0_20px_rgba(59,130,246,0.3)]"></div>
                         <div>
-                            <p className="text-sm font-black text-white italic uppercase">Engineering Data...</p>
-                            <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black mt-1 italic">Cross-referencing multiple sensors</p>
+                            <p className="text-sm font-black text-white italic uppercase tracking-tighter">AI Perception Active</p>
+                            <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black mt-1 italic">Cross-referencing multiple sensors...</p>
                         </div>
                     </div>
                 )}
 
                 {extractedData && (
-                    <div className="space-y-6 animate-in zoom-in duration-500">
-                        <div className="bg-white rounded-[3.5rem] p-10 text-carb-navy space-y-8 shadow-2xl relative overflow-hidden">
+                    <div className="space-y-6 animate-in zoom-in duration-700">
+                        <div className="bg-white rounded-[3.5rem] p-10 text-carb-navy space-y-8 shadow-[0_40px_80px_rgba(0,0,0,0.5)] relative overflow-hidden">
                             <div className="absolute top-0 right-0 bg-carb-accent text-white px-8 py-2 rounded-bl-3xl font-black text-[9px] uppercase tracking-widest italic">
-                                Extracted Report
+                                Extracted Protocol
                             </div>
                             
-                            <div className="space-y-6">
+                            <div className="space-y-8">
                                 <div className="space-y-1">
-                                    <h4 className="text-[10px] font-black text-carb-accent uppercase tracking-widest italic">Registered Owner</h4>
-                                    <p className="text-2xl font-black tracking-tighter italic uppercase truncate">
-                                        {extractedData.registeredOwner || 'UNKNOWN FLEET'}
+                                    <h4 className="text-[10px] font-black text-carb-accent uppercase tracking-widest italic">Fleet / Registered Owner</h4>
+                                    <p className="text-3xl font-black tracking-tighter italic uppercase truncate">
+                                        {extractedData.registeredOwner || 'UNKNOWN OPERATOR'}
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-y-8 gap-x-6">
                                     <div className="space-y-1">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">VIN</p>
-                                        <p className="font-mono text-xs font-black tracking-widest">{extractedData.vin || 'N/A'}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Vehicle Identification</p>
+                                        <p className="font-mono text-sm font-black tracking-widest text-carb-navy">{extractedData.vin || 'N/A'}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Plate</p>
-                                        <p className="font-black text-sm">{extractedData.licensePlate || 'N/A'}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">License Plate</p>
+                                        <p className="font-black text-lg italic">{extractedData.licensePlate || 'N/A'}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Mileage</p>
-                                        <p className="font-black text-sm italic">{extractedData.mileage || 'N/A'}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Odometer (MI)</p>
+                                        <p className="font-black text-lg italic">{extractedData.mileage || 'N/A'}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Engine Yr</p>
-                                        <p className="font-black text-sm italic">{extractedData.engineYear || 'N/A'}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Engine Model Year</p>
+                                        <p className="font-black text-lg italic">{extractedData.engineYear || 'N/A'}</p>
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-gray-50 rounded-[2rem] border border-gray-100 space-y-4">
-                                    <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Technical Parameters</h5>
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between text-[11px] font-bold">
-                                            <span className="text-gray-400 uppercase">EFN:</span>
-                                            <span className="text-carb-navy">{extractedData.engineFamilyName || 'NOT FOUND'}</span>
+                                <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100 space-y-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Technical Engine Profile</h5>
+                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${extractedData.eclCondition?.includes('Readable') ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            ECL: {extractedData.eclCondition || 'Review Required'}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between text-[12px] font-black">
+                                            <span className="text-gray-400 uppercase tracking-tighter">Engine Family (EFN)</span>
+                                            <span className="text-carb-navy">{extractedData.engineFamilyName || 'N/A'}</span>
                                         </div>
-                                        <div className="flex justify-between text-[11px] font-bold">
-                                            <span className="text-gray-400 uppercase">MFR:</span>
+                                        <div className="flex justify-between text-[12px] font-black">
+                                            <span className="text-gray-400 uppercase tracking-tighter">Manufacturer</span>
                                             <span className="text-carb-navy">{extractedData.engineManufacturer || 'N/A'}</span>
                                         </div>
-                                        <div className="flex justify-between text-[11px] font-bold">
-                                            <span className="text-gray-400 uppercase">MODEL:</span>
-                                            <span className="text-carb-navy">{extractedData.engineModel || 'N/A'}</span>
+                                        <div className="flex justify-between text-[12px] font-black">
+                                            <span className="text-gray-400 uppercase tracking-tighter">USDOT Number</span>
+                                            <span className="text-carb-navy">{extractedData.dotNumber || 'N/A'}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <button 
-                                onClick={handleEmailToDispatch}
-                                className="w-full py-6 bg-carb-navy text-white font-black rounded-[2rem] text-sm tracking-widest uppercase active-haptic shadow-xl flex items-center justify-center gap-3 italic"
-                            >
-                                ✉️ Email to Dispatch
-                            </button>
-                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-center italic">Sending to: bgillis99@gmail.com</p>
+                            <div className="space-y-3">
+                                <button 
+                                    onClick={handleEmailToDispatch}
+                                    className="w-full py-6 bg-carb-navy text-white font-black rounded-[2rem] text-sm tracking-widest uppercase active-haptic shadow-xl flex items-center justify-center gap-3 italic hover:bg-carb-accent transition-all duration-300"
+                                >
+                                    ✉️ Email to Dispatch
+                                </button>
+                                <button 
+                                    onClick={handleDownload}
+                                    className="w-full py-5 border-2 border-carb-navy text-carb-navy font-black rounded-[2rem] text-[10px] tracking-widest uppercase active-haptic flex items-center justify-center gap-3 italic hover:bg-gray-100 transition-all"
+                                >
+                                    💾 Save Report to Device
+                                </button>
+                                <button onClick={clearFiles} className="w-full text-[9px] text-gray-400 font-black uppercase tracking-[0.3em] py-2 italic hover:text-red-500 transition-colors">Start New Scan Protocol</button>
+                            </div>
+                            
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-center italic">Automated Sync Priority: High</p>
                         </div>
                     </div>
                 )}
 
                 {resultText && (
-                    <div className="glass p-8 rounded-[3rem] border border-white/5 animate-in fade-in duration-300">
-                        <p className="text-sm font-medium text-gray-300 leading-relaxed italic">{resultText}</p>
+                    <div className="glass p-8 rounded-[3rem] border border-red-500/20 animate-in fade-in duration-300 text-center">
+                        <p className="text-sm font-black text-red-500 leading-relaxed italic uppercase">{resultText}</p>
                     </div>
                 )}
             </div>
