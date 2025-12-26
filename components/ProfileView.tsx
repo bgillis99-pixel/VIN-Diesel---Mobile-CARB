@@ -121,10 +121,34 @@ const ProfileView: React.FC<Props> = ({ user, onLogout, onAdminAccess, isOnline 
             <h4 className="text-[10px] font-black text-white uppercase tracking-[0.4em] italic">Activity Log</h4>
             <div className="bg-carb-accent/10 text-carb-accent px-3 py-1 rounded-full text-[9px] font-black uppercase border border-carb-accent/20 italic">{user.history.length} Logs</div>
         </div>
+
+        {/* Search Bar */}
+        <div className="px-8 py-4 bg-white/5 border-b border-white/5">
+            <div className="relative">
+                <input 
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Filter by VIN or Entity..."
+                    className="w-full bg-black/20 border border-white/10 rounded-2xl py-3 pl-10 pr-4 text-[10px] font-black text-white placeholder:text-gray-700 outline-none focus:border-carb-accent/50 transition-all uppercase tracking-widest italic"
+                />
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none">🔍</span>
+                {search && (
+                    <button 
+                        onClick={() => setSearch('')}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-white transition-colors"
+                    >
+                        ✕
+                    </button>
+                )}
+            </div>
+        </div>
         
         <div className="divide-y divide-white/5">
             {filteredHistory.length === 0 ? (
-                <div className="p-16 text-center text-[10px] font-black text-gray-700 uppercase tracking-widest italic">No Data Cached</div>
+                <div className="p-16 text-center text-[10px] font-black text-gray-700 uppercase tracking-widest italic">
+                    {search ? 'No matches found' : 'No Data Cached'}
+                </div>
             ) : (
                 filteredHistory.map((item: HistoryItem) => (
                     <div key={item.id} className="p-6 hover:bg-white/5 transition-colors flex justify-between items-center">
