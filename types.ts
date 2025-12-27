@@ -6,7 +6,8 @@ export enum AppView {
   GARAGE = 'GARAGE',
   TOOLS = 'TOOLS',
   PROFILE = 'PROFILE',
-  ADMIN = 'ADMIN'
+  ADMIN = 'ADMIN',
+  INTAKE = 'INTAKE'
 }
 
 export interface Message {
@@ -21,12 +22,6 @@ export interface Message {
 export interface ImageGenerationConfig {
   aspectRatio: string;
   size: string;
-}
-
-export enum AnalysisType {
-  IMAGE = 'IMAGE',
-  VIDEO = 'VIDEO',
-  AUDIO = 'AUDIO'
 }
 
 export interface ExtractedTruckData {
@@ -46,6 +41,23 @@ export interface ExtractedTruckData {
   inspectionDate?: string;
   inspectionLocation?: string;
   confidence?: 'high' | 'medium' | 'low';
+}
+
+export interface IntakeSubmission {
+  id: string;
+  clientName: string;
+  timestamp: number;
+  photos: {
+    vin: string | null;
+    plate: string | null;
+    odometer: string | null;
+    ecl: string | null;
+    engine: string | null;
+    exterior: string | null;
+    registration: string | null;
+  };
+  extractedData: ExtractedTruckData | null;
+  status: 'pending' | 'reviewed' | 'exported';
 }
 
 export interface Job {
@@ -103,21 +115,6 @@ export interface Truck {
   lastChecked: number;
 }
 
-export interface HotLead {
-  id: string;
-  company: string;
-  phone: string;
-  email: string;
-  address: string;
-  fleetSize: string;
-  status: 'HOT' | 'WARM' | 'COLD';
-  zone: string;
-  source: string;
-  smsTemplate: string;
-}
-
-export interface Lead extends HotLead {}
-
 export interface HistoryItem {
   id: string;
   value: string;
@@ -129,4 +126,26 @@ export interface HistoryItem {
 export interface User {
   email: string;
   history: HistoryItem[];
+}
+
+// Fix: Added missing Lead interface to resolve import errors in AdminView.tsx
+export interface Lead {
+  company: string | null;
+  phone: string | null;
+  dotNumber: string | null;
+  location: string | null;
+}
+
+// Fix: Added missing HotLead interface to resolve import errors in AdminView.tsx
+export interface HotLead {
+  id: string;
+  company: string;
+  phone: string;
+  email: string;
+  address: string;
+  fleetSize: string;
+  status: 'HOT' | 'WARM' | 'COLD';
+  zone: string;
+  source: string;
+  smsTemplate: string;
 }

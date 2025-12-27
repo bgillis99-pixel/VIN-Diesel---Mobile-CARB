@@ -2,7 +2,7 @@
 import * as firebase_app from "firebase/app";
 import * as firebase_auth from "firebase/auth";
 import * as firebase_firestore from "firebase/firestore";
-import { Truck, HistoryItem, Job, Vehicle } from "../types";
+import { Truck, HistoryItem, Job, Vehicle, IntakeSubmission } from "../types";
 
 const { initializeApp, getApp, getApps } = firebase_app as any;
 const { getAuth, GoogleAuthProvider, signInWithPopup, signOut: firebaseSignOut, onAuthStateChanged: firebaseOnAuthStateChanged } = firebase_auth as any;
@@ -78,6 +78,32 @@ export const logoutUser = async () => {
     return;
   }
   await firebaseSignOut(auth);
+};
+
+// --- INTAKE SUBMISSIONS ---
+
+export const saveIntakeSubmission = async (submission: Omit<IntakeSubmission, 'id'>) => {
+  if (isMockMode || !db) {
+    const submissions = JSON.parse(localStorage.getItem('inbound_intakes') || '[]');
+    const newSub = { ...submission, id: Date.now().toString() };
+    submissions.unshift(newSub);
+    localStorage.setItem('inbound_intakes', JSON.stringify(submissions));
+    return newSub;
+  }
+  const docRef = await addDoc(collection(db, "intakes"), submission);
+  return { id: docRef.id, ...submission };
+};
+
+export const subscribeToInboundIntakes = (callback: (data: IntakeSubmission[]) => void) => {
+  if (isMockMode || !db) {
+    const data = JSON.parse(localStorage.getItem('inbound_intakes') || '[]');
+    callback(data);
+    return () => {};
+  }
+  const q = query(collection(db, "intakes"), orderBy("timestamp", "desc"));
+  return onSnapshot(q, (snapshot: any) => {
+    callback(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+  });
 };
 
 // --- JOBS & VEHICLES DATA LAYER ---
