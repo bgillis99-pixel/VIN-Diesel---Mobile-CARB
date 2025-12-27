@@ -1,56 +1,42 @@
 
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { MODEL_NAMES } from "../constants";
-import { Lead, ImageGenerationConfig, AnalysisType, RegistrationData, ExtractedTruckData } from "../types";
+import { Job, Vehicle, ExtractedTruckData, ImageGenerationConfig } from "../types";
 
-// Always initialize with process.env.API_KEY using a named parameter
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// --- VIN VALIDATION LOGIC ---
-const VIN_TRANSLITERATION: Record<string, number> = {
-    'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8,
-    'J': 1, 'K': 2, 'L': 3, 'M': 4, 'N': 5, 'P': 7, 'R': 9,
-    'S': 2, 'T': 3, 'U': 4, 'V': 5, 'W': 6, 'X': 7, 'Y': 8, 'Z': 9,
-    '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '0': 0
+/**
+ * Validates the VIN check digit (position 9) using the MOD 11 algorithm.
+ */
+export const validateVINCheckDigit = (vin: string): boolean => {
+  if (!vin || vin.length !== 17) return false;
+  
+  const transliteration: Record<string, number> = {
+    A:1, B:2, C:3, D:4, E:5, F:6, G:7, H:8,
+    J:1, K:2, L:3, M:4, N:5, P:7, R:9,
+    S:2, T:3, U:4, V:5, W:6, X:7, Y:8, Z:9
+  };
+  const weights = [8,7,6,5,4,3,2,10,0,9,8,7,6,5,4,3,2];
+  
+  let sum = 0;
+  for (let i = 0; i < 17; i++) {
+    if (i === 8) continue; // Check digit position
+    const char = vin[i];
+    const value = !isNaN(Number(char)) ? parseInt(char) : transliteration[char];
+    if (value === undefined) return false; // Invalid character (I, O, Q)
+    sum += value * weights[i];
+  }
+  
+  const remainder = sum % 11;
+  const expected = remainder === 10 ? 'X' : remainder.toString();
+  return vin[8] === expected;
 };
-const VIN_WEIGHTS = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2];
 
-const validateChecksum = (vin: string): boolean => {
-    if (vin.length !== 17) return false;
-    let sum = 0;
-    for (let i = 0; i < 17; i++) {
-        if (i === 8) continue;
-        const char = vin[i];
-        const val = VIN_TRANSLITERATION[char];
-        if (val === undefined) return false;
-        sum += val * VIN_WEIGHTS[i];
-    }
-    const check = sum % 11;
-    const checkChar = check === 10 ? 'X' : check.toString();
-    return checkChar === vin[8];
-};
-
-const repairVin = (vin: string): string => {
-    if (validateChecksum(vin)) return vin;
-    const swaps = [
-        { char: '5', replacement: 'S' }, { char: 'S', replacement: '5' },
-        { char: '8', replacement: 'B' }, { char: 'B', replacement: '8' },
-        { char: '2', replacement: 'Z' }, { char: 'Z', replacement: '2' },
-        { char: '6', replacement: 'G' }, { char: 'G', replacement: '6' }
-    ];
-    for (let i = 0; i < 17; i++) {
-        if (i === 8) continue;
-        const originalChar = vin[i];
-        for (const swap of swaps) {
-            if (originalChar === swap.char) {
-                const chars = vin.split('');
-                chars[i] = swap.replacement;
-                const candidate = chars.join('');
-                if (validateChecksum(candidate)) return candidate;
-            }
-        }
-    }
-    return vin;
+export const repairVin = (vin: string): string => {
+    // Basic repair logic for common OCR confusions
+    let repaired = vin.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    repaired = repaired.replace(/[IOQ]/g, (m) => m === 'I' ? '1' : '0');
+    return repaired;
 };
 
 export const SYSTEM_INSTRUCTION = `
@@ -79,22 +65,20 @@ export const sendMessage = async (
 ) => {
   try {
     let modelName = MODEL_NAMES.FLASH;
-    // Maps grounding is only supported in Gemini 2.5 series models
     if (mode === 'maps') {
       modelName = 'gemini-2.5-flash-preview-09-2025';
     }
 
     let config: any = { 
         systemInstruction: SYSTEM_INSTRUCTION,
-        // Ensure tools are used correctly. googleMaps can be used with googleSearch but not other tools.
         tools: mode === 'maps' ? [{ googleMaps: {} }] : (mode === 'search' || mode === 'standard' ? [{ googleSearch: {} }] : [])
     };
     
     if (mode === 'thinking') {
       modelName = MODEL_NAMES.PRO;
-      config.thinkingConfig = { thinkingBudget: 32768 }; // Max budget for deep reasoning on gemini-3-pro-preview
+      config.thinkingConfig = { thinkingBudget: 32768 };
     } else if (imageData) {
-      modelName = MODEL_NAMES.PRO; // Use Pro for any image-related understanding
+      modelName = MODEL_NAMES.PRO;
     }
 
     if (mode === 'maps' && location) {
@@ -127,7 +111,6 @@ export const sendMessage = async (
         .filter((u: any) => u !== null);
     }
 
-    // Correctly using response.text property
     return {
       text: response.text || "I couldn't generate a response.",
       groundingUrls,
@@ -142,29 +125,15 @@ export const sendMessage = async (
 export const findTestersNearby = async (zipCode: string, location?: { lat: number, lng: number }) => {
   try {
     const prompt = `Find certified CARB HD I/M Clean Truck Check testers and commercial smoke testing stations near zip code ${zipCode}. Focus on mobile units if available.`;
-    
-    const config: any = {
-      tools: [{ googleMaps: {} }],
-    };
-
+    const config: any = { tools: [{ googleMaps: {} }] };
     if (location) {
-      config.toolConfig = {
-        retrievalConfig: {
-          latLng: {
-            latitude: location.lat,
-            longitude: location.lng
-          }
-        }
-      };
+      config.toolConfig = { retrievalConfig: { latLng: { latitude: location.lat, longitude: location.lng } } };
     }
-
-    // Maps grounding is only supported in Gemini 2.5 series models.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-preview-09-2025',
       contents: prompt,
       config
     });
-
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const locations = groundingChunks
       .filter((chunk: any) => chunk.maps)
@@ -172,20 +141,28 @@ export const findTestersNearby = async (zipCode: string, location?: { lat: numbe
         title: chunk.maps.title,
         uri: chunk.maps.uri,
       }));
-
-    return {
-      text: response.text,
-      locations
-    };
+    return { text: response.text, locations };
   } catch (error) {
     console.error("Maps Grounding Error:", error);
     return { text: "Search failed", locations: [] };
   }
 };
 
-export const extractVinFromImage = async (file: File): Promise<{vin: string, description: string}> => {
+export const extractVinFromImage = async (file: File): Promise<{vin: string, description: string, confidence: string}> => {
   const b64 = await fileToBase64(file);
-  const prompt = `Extract the 17-character VIN from this vehicle label. Look for "VIN", "Vehicle ID", or stamps. Ignore dirt/glare. Output JSON: {"vin": "STRING", "description": "STRING"}`;
+  const prompt = `SYSTEM: You are a VIN extraction specialist. Extract the 17-character Vehicle Identification Number from this photo of a VIN plate.
+RULES:
+- VINs are exactly 17 characters
+- VINs never contain I, O, or Q (often confused with 1, 0)
+- If you see I, replace with 1
+- If you see O, replace with 0
+- Common confusions: 8/B, 5/S, 0/D, 1/I, 2/Z
+OUTPUT FORMAT (JSON only):
+{
+  "vin": "string or null",
+  "confidence": "high|medium|low",
+  "notes": "any issues or ambiguities"
+}`;
 
   try {
     const response = await ai.models.generateContent({
@@ -202,44 +179,123 @@ export const extractVinFromImage = async (file: File): Promise<{vin: string, des
               type: Type.OBJECT,
               properties: {
                   vin: { type: Type.STRING },
-                  description: { type: Type.STRING }
+                  confidence: { type: Type.STRING },
+                  notes: { type: Type.STRING }
               }
           }
       }
     });
 
     let json = JSON.parse(response.text || '{}');
-    let vin = (json.vin || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/[IOQ]/g, (m: string) => m === 'I' ? '1' : '0');
-    vin = repairVin(vin);
+    let vin = repairVin(json.vin || '');
     
     return {
         vin: vin,
-        description: json.description || (validateChecksum(vin) ? 'Verified' : 'Manual review recommended')
+        confidence: json.confidence || 'low',
+        description: json.notes || (validateVINCheckDigit(vin) ? 'Verified' : 'Manual review recommended')
     };
   } catch (error) {
     console.error("VIN Extract Error:", error);
-    return { vin: '', description: 'Scan failed' };
+    return { vin: '', description: 'Scan failed', confidence: 'low' };
   }
+};
+
+export const extractEclLabel = async (file: File): Promise<any> => {
+  const b64 = await fileToBase64(file);
+  const prompt = `SYSTEM: Extract Emission Control Label (ECL) data from this photo.
+EXTRACT THESE FIELDS:
+- Engine Family Name (format: usually starts with letter, ~12 chars)
+- Engine Manufacturer (e.g., Cummins, Paccar, Detroit Diesel, Caterpillar)
+- Engine Model (e.g., ISX, PX-8, DD15, C15)
+- Engine Year (4-digit year)
+- ECL Condition: assess if label is clear/faded/damaged/missing
+OUTPUT FORMAT (JSON only):
+{
+  "engineFamilyName": "string or null",
+  "engineManufacturer": "string or null", 
+  "engineModel": "string or null",
+  "engineYear": number or null,
+  "eclCondition": "clear|faded|damaged|missing",
+  "confidence": "high|medium|low"
+}`;
+
+  const response = await ai.models.generateContent({
+    model: MODEL_NAMES.PRO,
+    contents: {
+      parts: [
+        { inlineData: { mimeType: file.type, data: b64 } },
+        { text: prompt }
+      ]
+    },
+    config: {
+      responseMimeType: "application/json"
+    }
+  });
+  return JSON.parse(response.text || '{}');
+};
+
+export const extractOdometer = async (file: File): Promise<{mileage: string, confidence: string}> => {
+  const b64 = await fileToBase64(file);
+  const prompt = `SYSTEM: Extract mileage from this odometer photo.
+RULES:
+- Return numeric value only (no commas)
+- If digital display shows multiple values, extract the main odometer
+- Ignore trip meters
+OUTPUT FORMAT (JSON only):
+{
+  "mileage": number or null,
+  "displayType": "digital|analog",
+  "confidence": "high|medium|low"
+}`;
+  const response = await ai.models.generateContent({
+      model: MODEL_NAMES.PRO,
+      contents: { parts: [{ inlineData: { mimeType: file.type, data: b64 } }, { text: prompt }] },
+      config: { responseMimeType: "application/json" }
+  });
+  const json = JSON.parse(response.text || '{}');
+  return { mileage: String(json.mileage || ''), confidence: json.confidence };
+};
+
+export const extractCompanyInfo = async (file: File): Promise<any> => {
+    const b64 = await fileToBase64(file);
+    const prompt = `SYSTEM: Extract company information from this truck photo.
+LOOK FOR:
+- Company name on door, cab, or trailer
+- Phone numbers (format as (XXX) XXX-XXXX)
+- DOT/MC numbers
+- City/location text
+OUTPUT FORMAT (JSON only):
+{
+  "companyName": "string or null",
+  "phone": "string or null",
+  "dotNumber": "string or null",
+  "mcNumber": "string or null",
+  "location": "string or null"
+}`;
+    const response = await ai.models.generateContent({
+        model: MODEL_NAMES.PRO,
+        contents: { parts: [{ inlineData: { mimeType: file.type, data: b64 } }, { text: prompt }] },
+        config: { responseMimeType: "application/json" }
+    });
+    return JSON.parse(response.text || '{}');
 };
 
 export const batchAnalyzeTruckImages = async (files: File[]): Promise<ExtractedTruckData> => {
   const parts: any[] = [];
-  
   for (const file of files) {
     const b64 = await fileToBase64(file);
     parts.push({ inlineData: { mimeType: file.type, data: b64 } });
   }
 
-  const prompt = `You are a high-fidelity diagnostic engineer. Analyze these technical assets of a heavy-duty diesel truck (VIN plate, Odometer, Engine Tag, Registration Card). 
+  const prompt = `You are a high-fidelity diagnostic engineer. Analyze these technical assets of a heavy-duty diesel truck. 
   Extract precisely every detail into the structured JSON object. 
   
   CRITICAL FIELDS:
   - vin: Must be the 17-character sequence. Clean and validate.
   - mileage: Extract the numerical digits from the odometer photo.
   - engineFamilyName: Also known as EFN. Found on the emission label.
-  - eclCondition: Report if label is 'Legible/Clean', 'Damaged', or 'Missing'.
-  - registeredOwner: Full company name from the registration document.
-  - dotNumber: Extract USDOT number if visible.
+  - eclCondition: Report if label is 'clear', 'faded', 'damaged', or 'missing'.
+  - registeredOwner: Full company name from the registration or door.
   
   JSON SCHEMA:
   {
@@ -267,30 +323,9 @@ export const batchAnalyzeTruckImages = async (files: File[]): Promise<ExtractedT
       model: MODEL_NAMES.PRO,
       contents: { parts },
       config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            vin: { type: Type.STRING },
-            licensePlate: { type: Type.STRING },
-            mileage: { type: Type.STRING },
-            registeredOwner: { type: Type.STRING },
-            contactName: { type: Type.STRING },
-            contactEmail: { type: Type.STRING },
-            contactPhone: { type: Type.STRING },
-            engineFamilyName: { type: Type.STRING },
-            engineManufacturer: { type: Type.STRING },
-            engineModel: { type: Type.STRING },
-            engineYear: { type: Type.STRING },
-            eclCondition: { type: Type.STRING },
-            dotNumber: { type: Type.STRING },
-            inspectionDate: { type: Type.STRING },
-            inspectionLocation: { type: Type.STRING },
-          }
-        }
+        responseMimeType: "application/json"
       }
     });
-
     return JSON.parse(response.text || '{}');
   } catch (error) {
     console.error("Batch Analysis Error:", error);
@@ -298,187 +333,61 @@ export const batchAnalyzeTruckImages = async (files: File[]): Promise<ExtractedT
   }
 };
 
-export const extractEngineTagInfo = async (file: File): Promise<{familyName: string, modelYear: string, details: string}> => {
-    const b64 = await fileToBase64(file);
-    const prompt = `Analyze this Engine Control Label. Extract "Engine Family Name" (EFN) and "Model Year". Output JSON: {"familyName": "STRING", "modelYear": "STRING", "details": "STRING"}`;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: MODEL_NAMES.PRO,
-            contents: {
-                parts: [
-                    { inlineData: { mimeType: file.type, data: b64 } },
-                    { text: prompt }
-                ]
-            },
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        familyName: { type: Type.STRING },
-                        modelYear: { type: Type.STRING },
-                        details: { type: Type.STRING }
-                    }
-                }
-            }
-        });
-        return JSON.parse(response.text || '{}');
-    } catch (error) {
-        console.error("Engine Tag Error:", error);
-        throw error;
-    }
-};
-
-export const analyzeMedia = async (file: File, prompt: string, type: 'image' | 'video'): Promise<string> => {
+export const scoutTruckLead = async (file: File): Promise<any> => {
   const b64 = await fileToBase64(file);
-  const response = await ai.models.generateContent({
-    model: MODEL_NAMES.PRO,
-    contents: {
-      parts: [
-        { inlineData: { mimeType: file.type, data: b64 } },
-        { text: `Analyze this ${type}. ${prompt} Context: CARB Compliance.` }
-      ]
-    }
-  });
-  return response.text || "Analysis failed.";
+  const prompt = `SYSTEM: Analyze this commercial truck image for lead generation.
+Extract the following information if visible on the vehicle:
+- Company Name
+- Phone Number
+- USDOT Number
+- City/Location
+OUTPUT FORMAT (JSON only):
+{
+  "company": "string or null",
+  "phone": "string or null",
+  "dotNumber": "string or null",
+  "location": "string or null"
+}`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAMES.PRO,
+      contents: {
+        parts: [
+          { inlineData: { mimeType: file.type, data: b64 } },
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+    return JSON.parse(response.text || '{}');
+  } catch (error) {
+    console.error("Scout Truck Lead Error:", error);
+    throw error;
+  }
 };
 
-/**
- * Generate images using Gemini.
- * Uses gemini-2.5-flash-image by default. 
- * Requires user API key selection via window.aistudio for gemini-3-pro-image-preview.
- */
 export const generateAppImage = async (prompt: string, config: ImageGenerationConfig): Promise<string> => {
   let model = 'gemini-2.5-flash-image';
-  
-  // High quality requests trigger gemini-3-pro-image-preview and the mandatory key selection dialog
   if (config.size === '2K' || config.size === '4K') {
       model = MODEL_NAMES.PRO_IMAGE;
       if (typeof window !== 'undefined' && window.aistudio) {
           const hasKey = await window.aistudio.hasSelectedApiKey();
-          if (!hasKey) {
-              await window.aistudio.openSelectKey();
-              // Assume success per race condition guideline
-          }
+          if (!hasKey) await window.aistudio.openSelectKey();
       }
   }
-
-  // Use a fresh instance right before call as per guidelines
   const imageAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await imageAi.models.generateContent({
     model: model,
     contents: { parts: [{ text: prompt }] },
-    config: {
-        imageConfig: {
-            aspectRatio: config.aspectRatio,
-            ...(model === MODEL_NAMES.PRO_IMAGE ? { imageSize: config.size } : {})
-        }
-    }
+    config: { imageConfig: { aspectRatio: config.aspectRatio, ...(model === MODEL_NAMES.PRO_IMAGE ? { imageSize: config.size } : {}) } }
   });
-  
-  // Find the image part in the response candidates
   for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
   }
   throw new Error("No image generated");
-};
-
-export const generateSpeech = async (text: string): Promise<string> => {
-    const response = await ai.models.generateContent({
-        model: MODEL_NAMES.TTS,
-        contents: { parts: [{ text }] },
-        config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
-            }
-        }
-    });
-    const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (audioData) return audioData;
-    throw new Error("No audio generated");
-};
-
-export const transcribeAudio = async (file: File): Promise<string> => {
-    const b64 = await fileToBase64(file);
-    const response = await ai.models.generateContent({
-        model: MODEL_NAMES.FLASH,
-        contents: {
-            parts: [
-                { inlineData: { mimeType: file.type, data: b64 } },
-                { text: "Transcribe this audio file related to diesel truck compliance." }
-            ]
-        }
-    });
-    return response.text || "";
-};
-
-export const scoutTruckLead = async (file: File): Promise<Lead> => {
-    const b64 = await fileToBase64(file);
-    const prompt = `Analyze this truck fleet image. Extract Company Name, Phone, DOT Number, Location. Draft outreach email/social post. JSON: {companyName, phone, dot, location, industry, emailDraft, blogDraft}`;
-    const response = await ai.models.generateContent({
-        model: MODEL_NAMES.PRO,
-        contents: {
-            parts: [
-                { inlineData: { mimeType: file.type, data: b64 } },
-                { text: prompt }
-            ]
-        },
-        config: {
-            responseMimeType: "application/json",
-             responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  companyName: { type: Type.STRING },
-                  phone: { type: Type.STRING },
-                  dot: { type: Type.STRING },
-                  location: { type: Type.STRING },
-                  industry: { type: Type.STRING },
-                  emailDraft: { type: Type.STRING },
-                  blogDraft: { type: Type.STRING }
-                }
-            }
-        }
-    });
-    const json = JSON.parse(response.text || '{}');
-    return {
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-        ...json
-    };
-};
-
-export const parseRegistrationPhoto = async (file: File): Promise<RegistrationData> => {
-    const b64 = await fileToBase64(file);
-    const prompt = `Extract all details from this CA Registration Card. JSON: {vin, licensePlate, year, make, model, gvwr, ownerName, address, expirationDate}`;
-    const response = await ai.models.generateContent({
-        model: MODEL_NAMES.PRO,
-        contents: {
-            parts: [
-                { inlineData: { mimeType: file.type, data: b64 } },
-                { text: prompt }
-            ]
-        },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    vin: { type: Type.STRING },
-                    licensePlate: { type: Type.STRING },
-                    year: { type: Type.STRING },
-                    make: { type: Type.STRING },
-                    model: { type: Type.STRING },
-                    gvwr: { type: Type.STRING },
-                    ownerName: { type: Type.STRING },
-                    address: { type: Type.STRING },
-                    expirationDate: { type: Type.STRING }
-                }
-            }
-        }
-    });
-    return JSON.parse(response.text || '{}');
 };
 
 const fileToBase64 = (file: File): Promise<string> => {

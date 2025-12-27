@@ -47,12 +47,55 @@ export interface ExtractedTruckData {
   inspectionLocation?: string;
 }
 
-export interface HistoryItem {
+export interface Job {
   id: string;
-  value: string;
-  type: 'VIN' | 'ENTITY' | 'TRUCRS';
-  timestamp: number;
-  details?: any;
+  userId: string;
+  jobName: string;
+  jobDate: number;
+  location: {
+    lat: number;
+    lng: number;
+    address: string;
+  };
+  status: 'pending' | 'processing' | 'review' | 'approved' | 'exported';
+  vehicleCount: number;
+  createdAt: number;
+  exportedAt: number | null;
+  vehicles: Vehicle[];
+  sheetRowIds?: string[];
+}
+
+export interface Vehicle {
+  id: string;
+  jobId: string;
+  vin: string;
+  vinValid: boolean;
+  licensePlate: string;
+  companyName: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  mileage: string;
+  eclCondition: "clear" | "faded" | "damaged" | "missing";
+  engineFamilyName: string;
+  engineManufacturer: string;
+  engineModel: string;
+  engineYear: string;
+  vehicleYear: string;
+  vehicleMake: string;
+  vehicleModel: string;
+  gvwr: string;
+  testResult: "pass" | "fail" | "pending";
+  testDate: number;
+  photoUrls: {
+    vinPlate?: string;
+    licensePlate?: string;
+    odometer?: string;
+    eclLabel?: string;
+    exterior?: string[];
+  };
+  confidence: "high" | "medium" | "low";
+  manualEdits?: string[];
 }
 
 export interface Truck {
@@ -61,24 +104,6 @@ export interface Truck {
   nickname: string;
   status: 'COMPLIANT' | 'NOT_COMPLIANT' | 'UNKNOWN';
   lastChecked: number;
-  note?: string;
-}
-
-export interface User {
-  email: string;
-  history: HistoryItem[];
-}
-
-export interface Lead {
-  id: string;
-  timestamp: number;
-  companyName: string;
-  phone: string;
-  dot: string;
-  location: string;
-  industry: string;
-  emailDraft: string;
-  blogDraft: string;
 }
 
 export interface HotLead {
@@ -89,30 +114,22 @@ export interface HotLead {
   address: string;
   fleetSize: string;
   status: 'HOT' | 'WARM' | 'COLD';
-  zone: string; // e.g., "Hot (<50mi)"
-  smsTemplate: string;
+  zone: string;
   source: string;
+  smsTemplate: string;
 }
 
-export interface RegistrationData {
-  vin: string;
-  licensePlate: string;
-  year: string;
-  make: string;
-  model: string;
-  gvwr: string;
-  ownerName: string;
-  address: string;
-  expirationDate: string;
-}
+export interface Lead extends HotLead {}
 
-export interface Submission {
+export interface HistoryItem {
   id: string;
+  value: string;
+  type: 'VIN' | 'ENTITY' | 'TRUCRS';
   timestamp: number;
-  dateStr: string;
-  type: 'VIN_CHECK' | 'ENGINE_TAG' | 'REGISTRATION';
-  summary: string;
-  details: any;
-  coordinates: { lat: number, lng: number } | null;
-  status: 'NEW' | 'REVIEWED' | 'ARCHIVED';
+  details?: any;
+}
+
+export interface User {
+  email: string;
+  history: HistoryItem[];
 }
