@@ -290,35 +290,43 @@ export const batchAnalyzeTruckImages = async (files: File[]): Promise<ExtractedT
     parts.push({ inlineData: { mimeType: file.type, data: b64 } });
   }
 
-  const prompt = `You are a high-fidelity diagnostic engineer. Analyze these technical assets of a heavy-duty diesel truck. 
-  Extract precisely every detail into the structured JSON object. 
-  
-  CRITICAL FIELDS:
-  - vin: Must be the 17-character sequence. Clean and validate.
-  - mileage: Extract the numerical digits from the odometer photo.
-  - engineFamilyName: Also known as EFN. Found on the emission label.
-  - eclCondition: Report if label is 'clear', 'faded', 'damaged', or 'missing'.
-  - registeredOwner: Full company name from the registration or door.
-  
-  JSON SCHEMA:
-  {
-    "vin": "string",
-    "licensePlate": "string",
-    "mileage": "string",
-    "registeredOwner": "string",
-    "contactName": "string",
-    "contactEmail": "string",
-    "contactPhone": "string",
-    "engineFamilyName": "string",
-    "engineManufacturer": "string",
-    "engineModel": "string",
-    "engineYear": "string",
-    "eclCondition": "string",
-    "dotNumber": "string",
-    "inspectionDate": "string",
-    "inspectionLocation": "string",
-    "confidence": "string"
-  }`;
+  const prompt = `OBJECTIVE: You are a high-precision CARB (California Air Resources Board) Field Diagnostic Engineer. 
+You are analyzing a set of photos from a heavy-duty diesel truck inspection (OVI - Opacity & Visual Inspection).
+
+INSTRUCTIONS:
+1. Examine all provided photos to extract the required fields.
+2. PRIORITIZE these critical compliance fields:
+   - VIN: The 17-character Vehicle Identification Number. Clean it (no I, O, Q) and validate strictly.
+   - MILEAGE: The primary numerical odometer reading. Ignore trip meters.
+   - ENGINE FAMILY NAME (EFN): Typically a 12-character alphanumeric code found on the Emission Control Label (ECL).
+   - REGISTERED OWNER: The company name visible on the door, registration, or cab markings.
+3. EXTRACT other details if visible (Manufacturer, DOT number, etc.).
+4. ASSESS the ECL Condition (clear, faded, damaged, or missing).
+
+OUTPUT RULES:
+- Return ONLY a valid JSON object.
+- NO markdown formatting (no \`\`\`json blocks).
+- Ensure all values are strings or null.
+
+JSON SCHEMA:
+{
+  "vin": "string",
+  "licensePlate": "string",
+  "mileage": "string",
+  "registeredOwner": "string",
+  "contactName": "string",
+  "contactEmail": "string",
+  "contactPhone": "string",
+  "engineFamilyName": "string",
+  "engineManufacturer": "string",
+  "engineModel": "string",
+  "engineYear": "string",
+  "eclCondition": "string",
+  "dotNumber": "string",
+  "inspectionDate": "string",
+  "inspectionLocation": "string",
+  "confidence": "high|medium|low"
+}`;
 
   parts.push({ text: prompt });
 
@@ -330,7 +338,9 @@ export const batchAnalyzeTruckImages = async (files: File[]): Promise<ExtractedT
         responseMimeType: "application/json"
       }
     });
-    return JSON.parse(response.text || '{}');
+    // The model is asked for JSON only, but we trim to be safe.
+    const text = response.text.trim();
+    return JSON.parse(text);
   } catch (error) {
     console.error("Batch Analysis Error:", error);
     throw error;
