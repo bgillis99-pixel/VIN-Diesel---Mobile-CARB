@@ -5,8 +5,10 @@ import { signInWithGoogle, logoutUser } from '../services/firebase';
 
 interface Props {
   user: User | null;
-  onLogin: (email: string) => void;
-  onRegister: (email: string) => void;
+  // Fix: Made optional as they are not used in current implementation
+  onLogin?: (email: string) => void;
+  // Fix: Made optional as they are not used in current implementation
+  onRegister?: (email: string) => void;
   onLogout: () => void;
   onAdminAccess?: () => void;
   isOnline?: boolean;

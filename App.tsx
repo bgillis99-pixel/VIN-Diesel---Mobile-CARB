@@ -28,7 +28,9 @@ const ANDROID_ICON = (
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME); 
   const [user, setUser] = useState<User | null>(null);
-  const [showInstall, setShowInstall] = useState(false);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     initGA();
@@ -43,6 +45,33 @@ const App: React.FC = () => {
             } else { setUser(null); }
         });
     }
+
+    // Logic for Install Prompt
+    const checkInstallEligibility = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+      const visitCount = parseInt(localStorage.getItem('carb_visit_count') || '0', 10);
+      const newVisitCount = visitCount + 1;
+      localStorage.setItem('carb_visit_count', newVisitCount.toString());
+
+      const iosDetection = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      setIsIOS(iosDetection);
+
+      // Show prompt if user has visited at least twice and not already in standalone mode
+      if (newVisitCount >= 2 && !isStandalone) {
+        // We delay slightly to not interrupt initial load
+        setTimeout(() => setShowInstallPrompt(true), 3000);
+      }
+    };
+
+    checkInstallEligibility();
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   useEffect(() => { trackPageView(currentView); }, [currentView]);
@@ -54,6 +83,20 @@ const App: React.FC = () => {
     } else {
       navigator.clipboard.writeText(url);
       alert('Link copied!');
+    }
+  };
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        console.log('User accepted the A2HS prompt');
+      }
+      setDeferredPrompt(null);
+      setShowInstallPrompt(false);
+    } else if (isIOS) {
+      // Just keep showing prompt with instructions
     }
   };
 
@@ -100,7 +143,7 @@ const App: React.FC = () => {
                           <VinChecker 
                               onAddToHistory={() => {}} 
                               onNavigateChat={() => setCurrentView(AppView.ASSISTANT)}
-                              onShareApp={() => setShowInstall(true)}
+                              onShareApp={() => setShowInstallPrompt(true)}
                               onNavigateTools={() => setCurrentView(AppView.ANALYZE)}
                           />
                           <ComplianceGuide />
@@ -111,10 +154,51 @@ const App: React.FC = () => {
                     {currentView === AppView.GARAGE && <GarageView user={user} onNavigateLogin={() => setCurrentView(AppView.PROFILE)} />}
                     {currentView === AppView.ANALYZE && <MediaTools />}
                     {currentView === AppView.PROFILE && <ProfileView user={user} onLogout={() => setUser(null)} onAdminAccess={() => setCurrentView(AppView.ADMIN)} />}
+                    {/* Fix: Corrected comparison from AdminView component to AppView.ADMIN enum */}
                     {currentView === AppView.ADMIN && <AdminView />}
                 </Suspense>
             </div>
         </main>
+
+        {/* Add to Home Screen Prompt */}
+        {showInstallPrompt && (
+          <div className="fixed bottom-24 left-6 right-6 z-[150] animate-in slide-in-from-bottom-10 duration-500">
+            <div className="glass p-6 rounded-[2.5rem] border border-carb-accent/30 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-4">
+              <div className="flex items-start justify-between">
+                <div className="flex gap-4 items-center">
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-carb-navy shadow-inner">
+                    <img src="/logo.svg" alt="App Logo" className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-xs uppercase tracking-widest italic">Install Mobile App</h4>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-0.5">Instant Offline Compliance Access</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowInstallPrompt(false)} className="text-gray-500 p-2">✕</button>
+              </div>
+              
+              {isIOS ? (
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
+                   <p className="text-[10px] font-black uppercase text-carb-accent tracking-widest flex items-center gap-2">
+                     <span>1. Tap Share</span>
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 0l-3 3m3-3l3 3" /></svg>
+                   </p>
+                   <p className="text-[10px] font-black uppercase text-carb-accent tracking-widest flex items-center gap-2">
+                     <span>2. Add to Home Screen</span>
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                   </p>
+                </div>
+              ) : (
+                <button 
+                  onClick={handleInstallClick}
+                  className="w-full py-4 bg-white text-carb-navy rounded-2xl font-black text-[10px] tracking-[0.3em] uppercase italic active-haptic shadow-xl"
+                >
+                  Confirm Installation
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
