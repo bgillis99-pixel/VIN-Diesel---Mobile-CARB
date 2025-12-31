@@ -14,13 +14,13 @@ const GarageView = React.lazy(() => import('./components/GarageView'));
 const AdminView = React.lazy(() => import('./components/AdminView'));
 
 const APPLE_ICON = (
-  <svg className="w-6 h-6" viewBox="0 0 384 512" fill="currentColor">
+  <svg className="w-5 h-5" viewBox="0 0 384 512" fill="currentColor">
     <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
   </svg>
 );
 
 const ANDROID_ICON = (
-  <svg className="w-6 h-6" viewBox="0 0 576 512" fill="currentColor">
+  <svg className="w-5 h-5" viewBox="0 0 576 512" fill="currentColor">
     <path d="M420.55 301.93a24 24 0 1 1 24-24 24 24 0 0 1-24 24zm-265.1 0a24 24 0 1 1 24-24 24 24 0 0 1-24 24zm378.7-151.1l33.8-58.5a11 11 0 0 0-3.9-15.1 11.2 11.2 0 0 0-15.2 4L515 139.75c-50.7-42.3-116.3-65.6-187-65.6s-136.3 23.3-187 65.6l-33.8-58.5a11.2 11.2 0 0 0-15.2-4 11 11 0 0 0-3.9 15.1l33.8 58.5C51.5 197.6 0 285.5 0 384h576c0-98.5-51.5-186.4-121.85-233.17z" />
   </svg>
 );
@@ -29,7 +29,6 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME); 
   const [user, setUser] = useState<User | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
@@ -37,94 +36,46 @@ const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'intake') setCurrentView(AppView.INTAKE);
 
-    if (auth) {
-        onAuthStateChanged(auth, async (firebaseUser) => {
-            if (firebaseUser) {
-                const cloudHistory = await getHistoryFromCloud(firebaseUser.uid);
-                setUser({ email: firebaseUser.email || 'User', history: cloudHistory as HistoryItem[] });
-            } else { setUser(null); }
-        });
-    }
+    onAuthStateChanged(auth, async (firebaseUser: any) => {
+        if (firebaseUser) {
+            const cloudHistory = await getHistoryFromCloud(firebaseUser.uid);
+            setUser({ email: firebaseUser.email || 'Operator', history: cloudHistory as HistoryItem[] });
+        } else { setUser(null); }
+    });
 
-    const checkInstallEligibility = () => {
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-      const visitCount = parseInt(localStorage.getItem('carb_visit_count') || '0', 10);
-      const newVisitCount = visitCount + 1;
-      localStorage.setItem('carb_visit_count', newVisitCount.toString());
-
-      const iosDetection = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      setIsIOS(iosDetection);
-
-      if (newVisitCount >= 2 && !isStandalone) {
-        setTimeout(() => setShowInstallPrompt(true), 3000);
-      }
-    };
-
-    checkInstallEligibility();
-
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    const iosDetection = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(iosDetection);
   }, []);
 
   useEffect(() => { trackPageView(currentView); }, [currentView]);
 
-  const handleShare = () => {
-    const url = window.location.origin;
-    if (navigator.share) {
-      navigator.share({ title: 'CTC Compliant', text: 'Fast CARB VIN checks & OVI protocol.', url });
-    } else {
-      navigator.clipboard.writeText(url);
-      alert('Link copied!');
-    }
-  };
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        console.log('User accepted the A2HS prompt');
-      }
-      setDeferredPrompt(null);
-      setShowInstallPrompt(false);
-    }
-  };
-
   const navItems = [
-    { id: AppView.ANALYZE, label: 'FIELD HUB', icon: APPLE_ICON },
-    { id: AppView.ADMIN, label: 'CRM / OPS', icon: ANDROID_ICON },
-    { id: AppView.ASSISTANT, label: 'AI DIESEL', icon: APPLE_ICON },
+    { id: AppView.ANALYZE, label: 'HUB', icon: APPLE_ICON },
+    { id: AppView.ADMIN, label: 'OPS', icon: ANDROID_ICON },
+    { id: AppView.ASSISTANT, label: 'AI', icon: APPLE_ICON },
     { id: AppView.GARAGE, label: 'FLEET', icon: ANDROID_ICON },
   ];
 
   return (
-    <div className="dark">
-      <div className="min-h-screen flex flex-col bg-carb-navy text-white font-sans">
+    <div className="dark min-h-screen bg-carb-navy text-white overflow-x-hidden selection:bg-carb-accent">
         
         {currentView !== AppView.INTAKE && (
           <header className="pt-safe px-4 py-3 fixed top-0 left-0 right-0 glass-dark z-[100] flex flex-col gap-3">
               <div className="flex justify-between items-center">
-                  <div className="flex flex-col" onClick={() => setCurrentView(AppView.HOME)} role="button">
-                      <h1 className="text-lg font-black tracking-tighter text-white uppercase italic">CTC COMPLIANT</h1>
-                      <p className="text-[8px] font-black text-blue-500 uppercase tracking-[0.25em] -mt-1">V12.26.25</p>
+                  <div className="flex flex-col cursor-pointer" onClick={() => setCurrentView(AppView.HOME)}>
+                      <h1 className="text-lg font-black tracking-tighter uppercase italic">CTC COMPLIANT</h1>
+                      <p className="text-[8px] font-black text-blue-500 uppercase tracking-[0.25em] -mt-1">REGS v12.26.25</p>
                   </div>
-                  <div className="flex gap-1.5">
-                      <button onClick={handleShare} className="w-8 h-8 rounded-full glass border border-white/10 flex items-center justify-center text-xs active-haptic">
-                        {ANDROID_ICON}
-                      </button>
-                  </div>
+                  <button onClick={() => setCurrentView(AppView.PROFILE)} className="w-10 h-10 rounded-full glass flex items-center justify-center border border-white/10 active-haptic">
+                      {user ? <span className="text-[10px] font-black">{user.email[0].toUpperCase()}</span> : '👤'}
+                  </button>
               </div>
-              <div className="flex justify-between px-2">
+              <div className="flex justify-between px-2 gap-1">
                   {navItems.map(item => (
                     <button 
                       key={item.id} 
                       onClick={() => setCurrentView(item.id)} 
-                      className={`flex flex-col items-center gap-1 transition-all flex-1 py-1 rounded-xl ${currentView === item.id ? 'text-carb-accent bg-white/5' : 'text-gray-500'}`}
+                      className={`flex flex-col items-center gap-1 transition-all flex-1 py-2 rounded-2xl ${currentView === item.id ? 'text-carb-accent bg-white/5 border border-white/5' : 'text-gray-500 border border-transparent'}`}
                     >
                       <div className="scale-75">{item.icon}</div>
                       <span className="text-[8px] font-black tracking-widest uppercase leading-none">{item.label}</span>
@@ -134,11 +85,11 @@ const App: React.FC = () => {
           </header>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${currentView === AppView.INTAKE ? 'pt-6' : 'pt-32'} pb-12`}>
+        <main className={`flex-1 overflow-y-auto ${currentView === AppView.INTAKE ? 'pt-6' : 'pt-36'} pb-24`}>
             <div className="px-6">
-                <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-carb-accent border-t-transparent rounded-full animate-spin"></div></div>}>
+                <Suspense fallback={<div className="flex justify-center py-20 animate-pulse text-gray-500 uppercase font-black text-[10px] tracking-widest">Calibrating Optics...</div>}>
                     {currentView === AppView.HOME && (
-                        <>
+                        <div className="animate-in fade-in duration-700">
                           <VinChecker 
                               onAddToHistory={() => {}} 
                               onNavigateChat={() => setCurrentView(AppView.ASSISTANT)}
@@ -146,7 +97,7 @@ const App: React.FC = () => {
                               onNavigateTools={() => setCurrentView(AppView.ANALYZE)}
                           />
                           <ComplianceGuide />
-                        </>
+                        </div>
                     )}
                     {currentView === AppView.INTAKE && <ClientIntake onComplete={() => setCurrentView(AppView.HOME)} />}
                     {currentView === AppView.ASSISTANT && <ChatAssistant />}
@@ -158,45 +109,26 @@ const App: React.FC = () => {
             </div>
         </main>
 
-        {showInstallPrompt && (
-          <div className="fixed bottom-24 left-6 right-6 z-[150] animate-in slide-in-from-bottom-10 duration-500">
-            <div className="glass p-6 rounded-[2.5rem] border border-carb-accent/30 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-4">
-              <div className="flex items-start justify-between">
-                <div className="flex gap-4 items-center">
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-carb-navy shadow-inner">
-                    <img src="/logo.svg" alt="App Logo" className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h4 className="font-black text-xs uppercase tracking-widest italic">Install Mobile App</h4>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-0.5">Instant Offline Compliance Access</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowInstallPrompt(false)} className="text-gray-500 p-2">✕</button>
-              </div>
-              
-              {isIOS ? (
-                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
-                   <p className="text-[10px] font-black uppercase text-carb-accent tracking-widest flex items-center gap-2">
-                     <span>1. Tap Share</span>
-                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 0l-3 3m3-3l3 3" /></svg>
-                   </p>
-                   <p className="text-[10px] font-black uppercase text-carb-accent tracking-widest flex items-center gap-2">
-                     <span>2. Add to Home Screen</span>
-                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                   </p>
-                </div>
-              ) : (
-                <button 
-                  onClick={handleInstallClick}
-                  className="w-full py-4 bg-white text-carb-navy rounded-2xl font-black text-[10px] tracking-[0.3em] uppercase italic active-haptic shadow-xl"
-                >
-                  Confirm Installation
-                </button>
-              )}
-            </div>
-          </div>
+        {/* Floating AI Button */}
+        {currentView !== AppView.INTAKE && currentView !== AppView.ASSISTANT && (
+            <button 
+                onClick={() => setCurrentView(AppView.ASSISTANT)}
+                className="fixed bottom-24 right-6 w-14 h-14 bg-carb-accent text-white rounded-full shadow-[0_10px_30px_rgba(59,130,246,0.5)] flex items-center justify-center z-[150] active-haptic animate-pulse-slow border-2 border-white/20"
+            >
+                <span className="text-2xl">🤖</span>
+            </button>
         )}
-      </div>
+
+        {/* Global Footer Navigation for Quick Home Access */}
+        {currentView !== AppView.HOME && currentView !== AppView.INTAKE && (
+             <button 
+                onClick={() => setCurrentView(AppView.HOME)}
+                className="fixed bottom-safe left-1/2 -translate-x-1/2 mb-6 px-10 py-3 glass rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest active-haptic z-[100] italic"
+             >
+                Home Hub
+             </button>
+        )}
+
     </div>
   );
 };

@@ -4,6 +4,10 @@
   "requestFramePermissions": [
     "camera",
     "microphone",
-    "geolocation"
-  ]
+    "geolocation",
+    "clipboard-read"
+  ],
+  "short_name": "CTC Compliant",
+  "theme_color": "#020617",
+  "background_color": "#020617"
 }
