@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { batchAnalyzeTruckImages, validateVINCheckDigit } from '../services/geminiService';
 import { decodeVinNHTSA } from '../services/nhtsa';
@@ -17,6 +16,7 @@ const MediaTools: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [jobNameInput, setJobNameInput] = useState('');
   const [crmSearchQuery, setCrmSearchQuery] = useState('');
+  const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set());
   
   const multiFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,12 +70,25 @@ const MediaTools: React.FC = () => {
       setLoading(true);
       setStatusText('SYNCING TO GOOGLE SHEETS...');
       try {
-          // Simulation of a cloud function trigger for Sheets API
-          await new Promise(r => setTimeout(r, 2000));
-          alert(`SUCCESS: ${item.clientName} synced to "OVI Incoming Truck Info" spreadsheet.`);
-          trackEvent('crm_sheet_sync', { vin: item.extractedData?.vin });
+          // Simulation of mapping data to 'OVI Incoming Truck info'
+          const rowData = {
+              vin: item.extractedData?.vin,
+              plate: item.extractedData?.licensePlate,
+              mileage: item.extractedData?.mileage,
+              fleetOwner: item.clientName,
+              testResult: 'PENDING_REVIEW',
+              testerId: auth?.currentUser?.uid || 'UNKNOWN',
+              timestamp: new Date().toISOString()
+          };
+          console.log("Exporting Row to Google Sheets:", rowData);
+
+          // Simulated API Latency
+          await new Promise(r => setTimeout(r, 1500));
+          
+          setSyncedIds(prev => new Set(prev).add(item.id));
+          trackEvent('crm_sheet_sync_success', { vin: item.extractedData?.vin });
       } catch (e) {
-          alert("Sheet Sync Error.");
+          alert("Sheet Sync Error. check Google API credentials.");
       } finally {
           setLoading(false);
       }
@@ -154,7 +167,11 @@ const MediaTools: React.FC = () => {
                     />
                 </div>
                 
-                {filteredInbound.map(item => (
+                {filteredInbound.length === 0 ? (
+                  <div className="py-20 text-center opacity-30 text-[10px] font-black uppercase tracking-widest italic">
+                    No Inbound Records Detected
+                  </div>
+                ) : filteredInbound.map(item => (
                     <div key={item.id} className="glass p-8 rounded-[3rem] border border-white/5 space-y-6 relative overflow-hidden group">
                         <div className="flex justify-between items-start">
                             <div>
@@ -180,9 +197,15 @@ const MediaTools: React.FC = () => {
                         )}
                         
                         <div className="flex gap-2">
-                            <button onClick={() => syncToSheets(item)} disabled={loading} className="flex-1 py-4 bg-green-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest italic active-haptic shadow-lg">
+                            {syncedIds.has(item.id) ? (
+                              <div className="flex-1 py-4 bg-green-500/10 text-green-500 border border-green-500/30 rounded-2xl font-black text-[10px] uppercase tracking-widest italic flex items-center justify-center gap-2">
+                                <span>✓</span> SYNCED TO SHEETS
+                              </div>
+                            ) : (
+                              <button onClick={() => syncToSheets(item)} disabled={loading} className="flex-1 py-4 bg-green-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest italic active-haptic shadow-lg hover:bg-green-700 transition-colors">
                                 {loading ? 'SYNCING...' : 'Export to Sheet'}
-                            </button>
+                              </button>
+                            )}
                             <button className="flex-1 py-4 glass text-white rounded-2xl font-black text-[10px] uppercase tracking-widest italic border-white/5">View Photos</button>
                         </div>
                     </div>

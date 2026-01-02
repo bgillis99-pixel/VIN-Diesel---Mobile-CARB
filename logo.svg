@@ -1,21 +1,31 @@
-<svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
-  <rect width="800" height="450" fill="transparent"/>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1a1a2e"/>
+      <stop offset="1" stop-color="#16213e"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="220" fill="url(#bgGradient)"/>
   
-  <!-- Stylized Truck/Checkmark Icon -->
-  <g transform="translate(230, 40) scale(1.1)">
-    <!-- Top Part -->
-    <path d="M120 40 L280 40 L280 180 L230 180 L230 90 L120 180 Z" fill="#0D3B51" />
-    <!-- Main Body Part -->
-    <path d="M10 120 L180 120 L330 230 L330 180 L180 60 L10 180 Z" fill="#0D3B51" />
-    <!-- Bottom Shadow/Base -->
-    <path d="M10 180 L180 180 L180 230 L10 230 Z" fill="#0D3B51" />
+  <!-- Simplified Truck Silhouette -->
+  <g transform="translate(180, 300) scale(0.85)">
+    <path d="M0 450 L0 150 L500 150 L500 350 L750 350 L750 450 Z" fill="#ffffff" fill-opacity="0.1"/>
+    <path d="M50 400 L50 200 L450 200 L450 400 Z" fill="white"/>
+    <path d="M470 250 L680 250 L680 400 L470 400 Z" fill="white"/>
+    <!-- Wheels -->
+    <circle cx="150" cy="450" r="60" fill="white"/>
+    <circle cx="350" cy="450" r="60" fill="white"/>
+    <circle cx="600" cy="450" r="60" fill="white"/>
   </g>
 
-  <!-- CLEAN TRUCK CHECK Text -->
-  <g transform="translate(40, 280)">
-    <!-- CLEAN -->
-    <text x="0" y="70" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="120" fill="#4ADE80" style="letter-spacing: 0.1em;">CLEAN</text>
-    <!-- TRUCK CHECK -->
-    <text x="0" y="150" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="65" fill="#0D3B51" style="letter-spacing: 0.18em;">TRUCK CHECK</text>
+  <!-- Glowing Checkmark Badge -->
+  <g filter="url(#glow)">
+    <circle cx="750" cy="750" r="160" fill="#3b82f6"/>
+    <path d="M660 750 L720 810 L840 690" stroke="white" stroke-width="50" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 </svg>

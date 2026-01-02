@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, Suspense } from 'react';
 import VinChecker from './components/VinChecker';
 import ComplianceGuide from './components/ComplianceGuide';
 import ClientIntake from './components/ClientIntake';
 import { AppView, User, HistoryItem } from './types';
-import { initGA, trackPageView } from './services/analytics';
+import { initGA, trackPageView, trackEvent } from './services/analytics';
 import { auth, getHistoryFromCloud, onAuthStateChanged } from './services/firebase'; 
 
 const ChatAssistant = React.lazy(() => import('./components/ChatAssistant'));
@@ -28,8 +27,8 @@ const ANDROID_ICON = (
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME); 
   const [user, setUser] = useState<User | null>(null);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     initGA();
@@ -43,11 +42,55 @@ const App: React.FC = () => {
         } else { setUser(null); }
     });
 
-    const iosDetection = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    setIsIOS(iosDetection);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   useEffect(() => { trackPageView(currentView); }, [currentView]);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) {
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        alert("To install: Tap the 'Share' icon and select 'Add to Home Screen'.");
+      } else {
+        alert("Launch the app menu and select 'Install' or 'Add to Home Screen'.");
+      }
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      trackEvent('pwa_install_accepted');
+    }
+    setDeferredPrompt(null);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Clean Truck Check Compliant',
+          text: 'Check your CARB compliance status instantly!',
+          url: 'https://carbcleantruckcheck.app'
+        });
+      } catch (err) { console.error(err); }
+    } else {
+      navigator.clipboard.writeText('https://carbcleantruckcheck.app');
+      alert('Link copied to clipboard!');
+    }
+  };
 
   const navItems = [
     { id: AppView.ANALYZE, label: 'HUB', icon: APPLE_ICON },
@@ -58,6 +101,11 @@ const App: React.FC = () => {
 
   return (
     <div className="dark min-h-screen bg-carb-navy text-white overflow-x-hidden selection:bg-carb-accent">
+        {!isOnline && (
+          <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-[10px] font-black uppercase text-center py-1 z-[1000] tracking-widest">
+            Offline Mode - Local Cache Active
+          </div>
+        )}
         
         {currentView !== AppView.INTAKE && (
           <header className="pt-safe px-4 py-3 fixed top-0 left-0 right-0 glass-dark z-[100] flex flex-col gap-3">
@@ -66,9 +114,14 @@ const App: React.FC = () => {
                       <h1 className="text-lg font-black tracking-tighter uppercase italic">CTC COMPLIANT</h1>
                       <p className="text-[8px] font-black text-blue-500 uppercase tracking-[0.25em] -mt-1">REGS v12.26.25</p>
                   </div>
-                  <button onClick={() => setCurrentView(AppView.PROFILE)} className="w-10 h-10 rounded-full glass flex items-center justify-center border border-white/10 active-haptic">
-                      {user ? <span className="text-[10px] font-black">{user.email[0].toUpperCase()}</span> : '👤'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={handleShare} className="w-10 h-10 rounded-full glass flex items-center justify-center border border-white/10 active-haptic">
+                      📤
+                    </button>
+                    <button onClick={() => setCurrentView(AppView.PROFILE)} className="w-10 h-10 rounded-full glass flex items-center justify-center border border-white/10 active-haptic">
+                        {user ? <span className="text-[10px] font-black">{user.email[0].toUpperCase()}</span> : '👤'}
+                    </button>
+                  </div>
               </div>
               <div className="flex justify-between px-2 gap-1">
                   {navItems.map(item => (
@@ -93,7 +146,7 @@ const App: React.FC = () => {
                           <VinChecker 
                               onAddToHistory={() => {}} 
                               onNavigateChat={() => setCurrentView(AppView.ASSISTANT)}
-                              onShareApp={() => setShowInstallPrompt(true)}
+                              onShareApp={handleInstall}
                               onNavigateTools={() => setCurrentView(AppView.ANALYZE)}
                           />
                           <ComplianceGuide />
@@ -113,9 +166,10 @@ const App: React.FC = () => {
         {currentView !== AppView.INTAKE && currentView !== AppView.ASSISTANT && (
             <button 
                 onClick={() => setCurrentView(AppView.ASSISTANT)}
-                className="fixed bottom-24 right-6 w-14 h-14 bg-carb-accent text-white rounded-full shadow-[0_10px_30px_rgba(59,130,246,0.5)] flex items-center justify-center z-[150] active-haptic animate-pulse-slow border-2 border-white/20"
+                className="fixed bottom-24 right-6 w-16 h-16 bg-carb-accent text-white rounded-full shadow-[0_10px_40px_rgba(59,130,246,0.6)] flex items-center justify-center z-[150] active-haptic animate-pulse-slow border-2 border-white/30 group"
             >
-                <span className="text-2xl">🤖</span>
+                <span className="text-3xl group-hover:scale-110 transition-transform">🤖</span>
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full border border-carb-navy uppercase">Live</span>
             </button>
         )}
 
