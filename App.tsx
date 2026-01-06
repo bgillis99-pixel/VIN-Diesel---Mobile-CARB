@@ -29,7 +29,6 @@ const ANDROID_ICON = (
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.LANDING); 
   const [user, setUser] = useState<User | null>(null);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
@@ -47,20 +46,13 @@ const App: React.FC = () => {
         }
     });
 
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -68,44 +60,12 @@ const App: React.FC = () => {
 
   useEffect(() => { trackPageView(currentView); }, [currentView]);
 
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      alert("App Store installation ready. If on iOS, use 'Add to Home Screen' from Safari share menu.");
-      return;
-    }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-      trackEvent('pwa_install_success');
-    }
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'CTC Compliant App',
-          text: 'Quickly check CARB compliance and find mobile testers.',
-          url: window.location.origin
-        });
-        trackEvent('app_share_native');
-      } catch (err) {
-        console.error("Share failed:", err);
-      }
-    } else {
-      navigator.clipboard.writeText(window.location.origin);
-      alert("Link copied to clipboard!");
-      trackEvent('app_share_fallback');
-    }
-  };
-
   if (currentView === AppView.LANDING) {
     return <LandingView onLaunch={() => setCurrentView(AppView.HOME)} onNavigateTools={() => setCurrentView(AppView.ANALYZE)} />;
   }
 
   const navItems = [
-    { id: AppView.ANALYZE, label: 'HUB', icon: APPLE_ICON },
+    { id: AppView.HOME, label: 'HUB', icon: APPLE_ICON },
     { id: AppView.ADMIN, label: 'OPS', icon: ANDROID_ICON },
     { id: AppView.ASSISTANT, label: 'AI', icon: APPLE_ICON },
     { id: AppView.GARAGE, label: 'FLEET', icon: ANDROID_ICON },
@@ -116,50 +76,44 @@ const App: React.FC = () => {
         
         {!isOnline && (
           <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-[10px] font-black uppercase text-center py-1 z-[200] tracking-widest">
-            Offline Mode - Local Storage Syncing
+            Offline Mode
           </div>
         )}
 
         {currentView !== AppView.INTAKE && (
-          <header className="pt-safe px-4 py-3 fixed top-0 left-0 right-0 glass-dark z-[100] flex flex-col gap-3">
-              <div className="flex justify-between items-center">
-                  <div className="flex flex-col cursor-pointer" onClick={() => setCurrentView(AppView.HOME)}>
-                      <h1 className="text-lg font-black tracking-tighter uppercase italic">CLEAR TRUCK CHECK</h1>
-                      <p className="text-[8px] font-black text-blue-500 uppercase tracking-[0.25em] -mt-1">REGS v12.26.25</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={handleShare} className="w-10 h-10 rounded-full glass flex items-center justify-center border border-white/10 active-haptic">
-                        📤
-                    </button>
-                    <button onClick={() => setCurrentView(AppView.PROFILE)} className="w-10 h-10 rounded-full glass flex items-center justify-center border border-white/10 active-haptic">
-                        {user ? <span className="text-[10px] font-black">{user.email[0].toUpperCase()}</span> : '👤'}
-                    </button>
-                  </div>
+          <header className="pt-safe px-6 py-6 fixed top-0 left-0 right-0 glass-dark z-[100] flex flex-col gap-8">
+              <div className="flex flex-col items-start">
+                  <h1 className="text-2xl font-black tracking-tighter uppercase italic leading-none">CLEAR TRUCK CHECK</h1>
+                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mt-1">REGS V12.26.25</p>
               </div>
-              <div className="flex justify-between px-2 gap-1">
+              
+              <div className="flex justify-between items-center w-full max-w-sm mx-auto px-4">
                   {navItems.map(item => (
                     <button 
                       key={item.id} 
                       onClick={() => setCurrentView(item.id)} 
-                      className={`flex flex-col items-center gap-1 transition-all flex-1 py-2 rounded-2xl ${currentView === item.id ? 'text-carb-accent bg-white/5 border border-white/5' : 'text-gray-500 border border-transparent'}`}
+                      className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-3 px-1 rounded-2xl relative ${currentView === item.id ? 'text-blue-500' : 'text-gray-500'}`}
                     >
-                      <div className="scale-75">{item.icon}</div>
-                      <span className="text-[8px] font-black tracking-widest uppercase leading-none">{item.label}</span>
+                      {currentView === item.id && (
+                        <div className="absolute inset-0 bg-white/5 rounded-2xl border border-white/10 -z-10 shadow-[0_0_20px_rgba(59,130,246,0.1)]"></div>
+                      )}
+                      <div className="scale-90">{item.icon}</div>
+                      <span className="text-[9px] font-black tracking-widest uppercase leading-none">{item.label}</span>
                     </button>
                   ))}
               </div>
           </header>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${currentView === AppView.INTAKE ? 'pt-6' : 'pt-36'} pb-32`}>
+        <main className={`flex-1 overflow-y-auto ${currentView === AppView.INTAKE ? 'pt-6' : 'pt-48'} pb-32`}>
             <div className="px-6">
-                <Suspense fallback={<div className="flex justify-center py-20 animate-pulse text-gray-500 uppercase font-black text-[10px] tracking-widest">Initialising Carrier Hub...</div>}>
+                <Suspense fallback={<div className="flex justify-center py-20 animate-pulse text-gray-500 uppercase font-black text-[10px] tracking-widest">System Initializing...</div>}>
                     {currentView === AppView.HOME && (
                         <div className="animate-in fade-in duration-700">
                           <VinChecker 
                               onAddToHistory={() => {}} 
                               onNavigateChat={() => setCurrentView(AppView.ASSISTANT)}
-                              onShareApp={handleInstallClick}
+                              onShareApp={() => {}}
                               onNavigateTools={() => setCurrentView(AppView.ANALYZE)}
                           />
                           <ComplianceGuide />
@@ -178,12 +132,11 @@ const App: React.FC = () => {
         {currentView !== AppView.HOME && currentView !== AppView.INTAKE && (
              <button 
                 onClick={() => setCurrentView(AppView.HOME)}
-                className="fixed bottom-safe left-1/2 -translate-x-1/2 mb-6 px-10 py-3 glass rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest active-haptic z-[100] italic"
+                className="fixed bottom-safe left-1/2 -translate-x-1/2 mb-8 px-12 py-4 glass rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] active-haptic z-[100] italic"
              >
-                Dashboard
+                HUB
              </button>
         )}
-
     </div>
   );
 };
