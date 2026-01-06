@@ -5,39 +5,63 @@ import { Job, Vehicle, ExtractedTruckData, ImageGenerationConfig, Lead, AIAnalyt
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+/**
+ * Validates basic VIN format excluding forbidden letters I, O, Q.
+ */
 export const isValidVinFormat = (vin: string): boolean => {
+  const v = vin.toUpperCase().trim();
+  // Standard VINs are exactly 17 characters and exclude I, O, and Q.
   const vinRegex = /^[A-HJ-NPR-Z0-9]{17}$/;
-  return vinRegex.test(vin.toUpperCase());
+  return vinRegex.test(v);
 };
 
+/**
+ * Implements the standard MOD 11 Check Digit algorithm for VIN validation.
+ * Used to ensure character accuracy before state registry lookup.
+ */
 export const validateVINCheckDigit = (vin: string): boolean => {
   if (!vin || vin.length !== 17) return false;
-  const v = vin.toUpperCase();
+  const v = vin.toUpperCase().trim();
+  
+  // Basic format check including I, O, Q exclusion
   if (!isValidVinFormat(v)) return false;
 
-  // Fix: Standardized transliteration map and improved weight-sum logic
+  // Standard transliteration map for alphabetical characters (US CFR 565)
   const transliteration: Record<string, number> = { 
     A:1, B:2, C:3, D:4, E:5, F:6, G:7, H:8, 
     J:1, K:2, L:3, M:4, N:5, P:7, R:9, 
     S:2, T:3, U:4, V:5, W:6, X:7, Y:8, Z:9 
   }; 
-  const weights = [8,7,6,5,4,3,2,10,0,9,8,7,6,5,4,3,2]; 
+  
+  // Positional weights defined by the federal VIN standard
+  const weights = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2]; 
   
   let sum = 0; 
   for (let i = 0; i < 17; i++) { 
     const char = v[i]; 
-    const isNum = !isNaN(char as any);
-    const value = isNum ? parseInt(char) : (transliteration[char] || 0);
+    let value: number;
+    
+    if (/[0-9]/.test(char)) {
+      value = parseInt(char, 10);
+    } else {
+      value = transliteration[char] || 0;
+    }
+    
     sum += value * weights[i]; 
   } 
   
   const remainder = sum % 11; 
-  const checkDigit = remainder === 10 ? 'X' : remainder.toString(); 
-  return v[8] === checkDigit;
+  // Remainder 10 is represented as the letter 'X'
+  const calculatedCheckDigit = remainder === 10 ? 'X' : remainder.toString(); 
+  
+  // The check digit is located at the 9th position (index 8)
+  return v[8] === calculatedCheckDigit;
 };
 
+/**
+ * Corrects common user optical errors (mistaking I for 1, O/Q for 0).
+ */
 export const repairVin = (vin: string): string => {
-    // Standard VIN protocol: NEVER I, O, or Q.
     let repaired = vin.toUpperCase().replace(/[^A-Z0-9]/g, '');
     repaired = repaired.replace(/[OQ]/g, '0');
     repaired = repaired.replace(/[I]/g, '1');
@@ -84,7 +108,7 @@ export const generateMarketingInsights = async (rawMetadata: any): Promise<AIAna
  */
 export const extractVinAndPlateFromImage = async (file: File | Blob): Promise<{vin: string, plate: string, confidence: string}> => {
   const b64 = await fileToBase64(file);
-  const prompt = `Identify VIN and License Plate. Standard VINs NEVER contain I, O, or Q. Circle = 0. Vertical Bar = 1.`;
+  const prompt = `Extract VIN and License Plate. CRITICAL RULE: VINs NEVER contain letters I, O, or Q. Circle = 0. Vertical Bar = 1. Return JSON.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -123,19 +147,13 @@ export const extractVinAndPlateFromImage = async (file: File | Blob): Promise<{v
   }
 };
 
-/**
- * Batch analysis of multiple truck photos.
- */
-// Fix: Added missing export batchAnalyzeTruckImages to resolve compilation error
 export const batchAnalyzeTruckImages = async (files: (File | Blob)[]): Promise<ExtractedTruckData> => {
   const parts = await Promise.all(files.map(async (file) => {
     const b64 = await fileToBase64(file);
     return { inlineData: { mimeType: file.type || 'image/jpeg', data: b64 } };
   }));
 
-  const prompt = `Analyze these truck-related photos (VIN, license plate, odometer, engine tag, etc.) and extract relevant data for California Clean Truck Check (CTC) compliance. 
-  Focus on: VIN, License Plate, Mileage (Odometer), Engine Details (Family Name, Manufacturer, Model, Year), and Dot Number. 
-  Standard VINs NEVER contain I, O, or Q. Circle = 0. Vertical Bar = 1.`;
+  const prompt = `Perform comprehensive batch analysis of these fleet photos. Extract VIN, License Plate, and Engine Details. Standard VIN rules apply (No I, O, Q).`;
 
   try {
     const response = await ai.models.generateContent({
@@ -144,28 +162,7 @@ export const batchAnalyzeTruckImages = async (files: (File | Blob)[]): Promise<E
         parts: [...parts, { text: prompt }]
       },
       config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            vin: { type: Type.STRING },
-            licensePlate: { type: Type.STRING },
-            mileage: { type: Type.STRING },
-            registeredOwner: { type: Type.STRING },
-            contactName: { type: Type.STRING },
-            contactEmail: { type: Type.STRING },
-            contactPhone: { type: Type.STRING },
-            engineFamilyName: { type: Type.STRING },
-            engineManufacturer: { type: Type.STRING },
-            engineModel: { type: Type.STRING },
-            engineYear: { type: Type.STRING },
-            eclCondition: { type: Type.STRING },
-            dotNumber: { type: Type.STRING },
-            inspectionDate: { type: Type.STRING },
-            inspectionLocation: { type: Type.STRING },
-            confidence: { type: Type.STRING }
-          }
-        }
+        responseMimeType: "application/json"
       }
     });
 
@@ -173,7 +170,6 @@ export const batchAnalyzeTruckImages = async (files: (File | Blob)[]): Promise<E
     if (json.vin) json.vin = repairVin(json.vin);
     return json;
   } catch (error) {
-    console.error("Batch Analysis Error:", error);
     return { confidence: 'low' };
   }
 };
@@ -188,7 +184,7 @@ export const sendMessage = async (
     try {
         let modelName = mode === 'thinking' ? MODEL_NAMES.PRO : MODEL_NAMES.FLASH_LITE;
         const config: any = { 
-            systemInstruction: `You are 'VIN DIESEL AI', the regulatory assistant for California Clean Truck Check (CTC). ONLY answer CARB/CTC related questions. Tone: Professional and efficient.`,
+            systemInstruction: `You are 'VIN DIESEL AI', the regulatory assistant for California Clean Truck Check (CTC). You provide high-accuracy guidance on CARB compliance. If a query is unrelated to trucking or CARB, steer back to the topic. Support: 617-359-6953.`,
             tools: [{ googleSearch: {} }]
         };
         
@@ -208,7 +204,7 @@ export const sendMessage = async (
         const urls = chunks.map((c: any) => ({ uri: c.web?.uri || c.maps?.uri, title: c.web?.title || c.maps?.title })).filter((u: any) => u.uri);
 
         return {
-            text: response.text || "CARB database offline.",
+            text: response.text || "Database connection interrupted.",
             groundingUrls: urls
         };
     } catch (e) { throw e; }
@@ -217,7 +213,7 @@ export const sendMessage = async (
 export const findTestersNearby = async (zipCode: string) => {
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: `Certified HD smoke testing stations near ${zipCode} CA.`,
+        contents: `Locate active certified heavy-duty smoke testing stations in or near ${zipCode} California.`,
         config: { tools: [{ googleMaps: {} }] }
     });
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
