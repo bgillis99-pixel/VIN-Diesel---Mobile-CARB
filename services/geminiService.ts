@@ -88,23 +88,22 @@ export const generateMarketingInsights = async (rawMetadata: any): Promise<AIAna
 };
 
 /**
- * Enhanced VIN extraction prompt focusing on field ambiguity.
+ * Enhanced extraction prompt for both VIN and License Plate.
  */
-export const extractVinFromImage = async (file: File | Blob): Promise<{vin: string, description: string, confidence: string}> => {
+export const extractVinAndPlateFromImage = async (file: File | Blob): Promise<{vin: string, plate: string, confidence: string}> => {
   const b64 = await fileToBase64(file);
-  const prompt = `Identify the 17-character VIN from this vehicle photo (label, door jamb, chassis, or engine tag).
+  const prompt = `Identify the 17-character VIN and the License Plate number from this vehicle photo.
 
-CRITICAL CHARACTER RESOLUTION:
+CRITICAL VIN CHARACTER RESOLUTION:
 1. Standard VINs NEVER contain letters I, O, or Q.
 2. Circle shapes 'O' or 'Q' are ALWAYS digit '0' (ZERO).
 3. Vertical bars 'I' are ALWAYS digit '1' (ONE).
-4. Be wary of confusing '8' with '3' or 'S' with '5'.
 
 Return ONLY valid JSON:
 {
   "vin": "EXACT_17_CHAR_VIN",
-  "confidence": "high|medium|low",
-  "notes": "Specify any character ambiguity resolved"
+  "plate": "LICENSE_PLATE_IF_VISIBLE",
+  "confidence": "high|medium|low"
 }`;
 
   try {
@@ -122,26 +121,39 @@ Return ONLY valid JSON:
               type: Type.OBJECT,
               properties: {
                   vin: { type: Type.STRING },
-                  confidence: { type: Type.STRING },
-                  notes: { type: Type.STRING }
+                  plate: { type: Type.STRING },
+                  confidence: { type: Type.STRING }
               },
-              required: ["vin", "confidence", "notes"]
+              required: ["vin", "plate", "confidence"]
           }
       }
     });
 
     const json = JSON.parse(response.text || '{}');
     const vin = repairVin(json.vin || '');
+    const plate = (json.plate || '').toUpperCase().trim();
     
     return {
         vin: vin,
-        confidence: json.confidence || 'low',
-        description: json.notes || 'Optics verification complete.'
+        plate: plate,
+        confidence: json.confidence || 'low'
     };
   } catch (error) {
     console.error("Extraction Error:", error);
-    return { vin: '', description: 'Optics failed. Lighting insufficient.', confidence: 'low' };
+    return { vin: '', plate: '', confidence: 'low' };
   }
+};
+
+/**
+ * Enhanced VIN extraction prompt focusing on field ambiguity.
+ */
+export const extractVinFromImage = async (file: File | Blob): Promise<{vin: string, description: string, confidence: string}> => {
+  const result = await extractVinAndPlateFromImage(file);
+  return {
+    vin: result.vin,
+    description: result.plate ? `Plate detected: ${result.plate}` : 'Optics verification complete.',
+    confidence: result.confidence
+  };
 };
 
 export const sendMessage = async (

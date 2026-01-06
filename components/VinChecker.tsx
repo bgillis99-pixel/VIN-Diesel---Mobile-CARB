@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { extractVinFromImage, findTestersNearby, validateVINCheckDigit, isValidVinFormat, repairVin } from '../services/geminiService';
+import { extractVinAndPlateFromImage, findTestersNearby, validateVINCheckDigit, isValidVinFormat, repairVin } from '../services/geminiService';
 import { decodeVinNHTSA, NHTSAVehicle } from '../services/nhtsa';
 import { trackEvent } from '../services/analytics';
 
@@ -49,6 +49,7 @@ interface Props {
 
 const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools, onShareApp }) => {
   const [inputVal, setInputVal] = useState('');
+  const [plateVal, setPlateVal] = useState('');
   const [searchMode, setSearchMode] = useState<'VIN' | 'OWNER'>('VIN');
   const [loading, setLoading] = useState(false);
   const [formatError, setFormatError] = useState<string | null>(null);
@@ -136,14 +137,13 @@ const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools, onShareA
     canvas.toBlob(async (blob) => {
       if (!blob) { setLoading(false); return; }
       try {
-        const result = await extractVinFromImage(blob);
+        const result = await extractVinAndPlateFromImage(blob);
         if (result.vin && result.vin.length >= 11) {
             setInputVal(result.vin.toUpperCase());
+            setPlateVal(result.plate || '');
             setSearchMode('VIN');
             trackEvent('vin_scan_success');
-            if (result.vin.length === 17) {
-              setTimeout(() => setShowConfirmModal(true), 600);
-            }
+            setShowConfirmModal(true);
         } else {
             setFormatError("Optics failed. Enter manually.");
         }
@@ -164,14 +164,13 @@ const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools, onShareA
     setVinVerified(false);
     
     try {
-      const result = await extractVinFromImage(file);
+      const result = await extractVinAndPlateFromImage(file);
       if (result.vin && result.vin.length >= 11) {
           setInputVal(result.vin.toUpperCase());
+          setPlateVal(result.plate || '');
           setSearchMode('VIN');
           trackEvent('vin_scan_success');
-          if (result.vin.length === 17) {
-            setTimeout(() => setShowConfirmModal(true), 600);
-          }
+          setShowConfirmModal(true);
       } else {
           setFormatError("Optics failed. Enter manually.");
       }
@@ -200,8 +199,12 @@ const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools, onShareA
       setInputVal(val);
   };
 
+  const handlePlateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPlateVal(e.target.value.toUpperCase().trim());
+  };
+
   const handleShareResult = async () => {
-    const text = `Compliance Report for VIN: ${inputVal}. Status: ${showResultScreen?.toUpperCase()}`;
+    const text = `Compliance Report for VIN: ${inputVal}. Plate: ${plateVal || 'N/A'}. Status: ${showResultScreen?.toUpperCase()}`;
     if (navigator.share) {
         await navigator.share({ title: 'Compliance Report', text });
     } else {
@@ -229,7 +232,10 @@ const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools, onShareA
                     <p className="text-white text-xl font-bold uppercase tracking-wide">
                         Your vehicle is {isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT'}
                     </p>
-                    <p className="text-gray-400 font-mono text-sm tracking-widest">{inputVal}</p>
+                    <div className="space-y-1">
+                      <p className="text-gray-400 font-mono text-sm tracking-widest">{inputVal}</p>
+                      {plateVal && <p className="text-blue-400 font-black text-xs tracking-[0.2em] uppercase">Plate: {plateVal}</p>}
+                    </div>
                     {!isCompliant && (
                         <div className="bg-white/5 p-6 rounded-3xl border border-white/10 mt-4">
                             <p className="text-sm text-white/90 font-medium leading-relaxed italic">
@@ -286,7 +292,7 @@ const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools, onShareA
           </div>
           <div className="relative">
               <div className={`absolute -inset-1 rounded-[3rem] blur-sm opacity-20 transition-all duration-700 ${formatError ? 'bg-red-500' : (vinVerified ? 'bg-green-500' : 'bg-blue-600')}`}></div>
-              <div className="relative flex items-center">
+              <div className="relative space-y-3">
                 <input 
                   value={inputVal}
                   onChange={handleInputChange}
@@ -294,9 +300,17 @@ const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools, onShareA
                   placeholder="VIN ENTRY"
                   className={`relative w-full bg-black/95 text-white border border-white/10 rounded-[2.5rem] py-8 px-8 text-center text-3xl font-black outline-none transition-all placeholder:text-gray-800 ${formatError ? 'border-red-500' : (vinVerified ? 'border-green-500' : 'focus:border-blue-500')} tracking-[0.1em] vin-monospace`}
                 />
-                <button onClick={() => inputVal.length === 17 && setShowConfirmModal(true)} className={`absolute right-3 w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 shadow-2xl ${vinVerified ? 'bg-green-600 text-white' : 'bg-white/5 text-gray-800'}`}>
-                  {SUBMIT_ICON}
-                </button>
+                <div className="flex items-center gap-3">
+                    <input 
+                      value={plateVal}
+                      onChange={handlePlateChange}
+                      placeholder="PLATE (OPTIONAL)"
+                      className="flex-1 bg-black/50 text-white border border-white/10 rounded-2xl py-4 px-6 text-center text-sm font-black outline-none transition-all placeholder:text-gray-700 focus:border-blue-500/50 uppercase tracking-widest"
+                    />
+                    <button onClick={() => inputVal.length === 17 && setShowConfirmModal(true)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 shadow-2xl ${vinVerified ? 'bg-green-600 text-white' : 'bg-white/5 text-gray-800'}`}>
+                      {SUBMIT_ICON}
+                    </button>
+                </div>
               </div>
               {formatError && <p className="text-center text-[9px] font-black text-red-500 uppercase tracking-widest mt-3 animate-pulse">{formatError}</p>}
               {vinVerified && <p className="text-center text-[9px] font-black text-green-500 uppercase tracking-widest italic mt-3">{vehicleDetails?.year} {vehicleDetails?.make} IDENTIFIED</p>}
@@ -356,26 +370,44 @@ const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools, onShareA
           <div className="bg-[#020617] border border-white/10 rounded-[3.5rem] w-full max-w-xl overflow-hidden shadow-2xl animate-in zoom-in duration-300">
             <div className="bg-blue-600 p-10 text-center">
               <h2 className="text-2xl font-black italic uppercase text-white tracking-tight">Accuracy Validation</h2>
-              <p className="text-[12px] font-black text-white/80 uppercase tracking-widest mt-2 italic">Verify before submission</p>
+              <p className="text-[12px] font-black text-white/80 uppercase tracking-widest mt-2 italic">Verify detected optics</p>
             </div>
             
-            <div className="p-8 space-y-10">
-              <div className="bg-black/80 p-8 rounded-[2.5rem] border border-white/10 text-center">
-                <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-                  {inputVal.split('').map((char, i) => (
-                      <div key={i} className="flex flex-col items-center">
-                        <span className={`vin-monospace text-4xl sm:text-5xl font-black w-12 sm:w-14 h-14 sm:h-16 flex items-center justify-center rounded-xl border text-white bg-white/5 border-white/10`}>
-                          {char}
-                        </span>
-                        <span className="text-[8px] text-gray-800 font-bold mt-2 uppercase tracking-tighter">{i + 1}</span>
-                      </div>
-                  ))}
+            <div className="p-8 space-y-8">
+              <div className="space-y-4">
+                <div className="bg-black/80 p-8 rounded-[2.5rem] border border-white/10 text-center">
+                  <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em] mb-4 italic">Detected VIN</p>
+                  <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+                    {inputVal.split('').map((char, i) => (
+                        <div key={i} className="flex flex-col items-center">
+                          <span className={`vin-monospace text-2xl sm:text-4xl font-black w-8 sm:w-12 h-10 sm:h-14 flex items-center justify-center rounded-lg border text-white bg-white/5 border-white/10`}>
+                            {char}
+                          </span>
+                        </div>
+                    ))}
+                  </div>
+                  <input 
+                    value={inputVal}
+                    onChange={handleInputChange}
+                    className="w-full mt-6 bg-white/5 border border-white/10 p-4 rounded-xl text-center text-sm font-black text-white outline-none focus:border-blue-500 transition-all uppercase tracking-widest"
+                    placeholder="EDIT VIN"
+                  />
+                </div>
+
+                <div className="bg-black/80 p-6 rounded-[2rem] border border-white/10">
+                  <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em] mb-3 text-center italic">Detected License Plate</p>
+                  <input 
+                    value={plateVal}
+                    onChange={handlePlateChange}
+                    className="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-center text-xl font-black text-white outline-none focus:border-blue-500 transition-all uppercase tracking-[0.2em]"
+                    placeholder="PLATE"
+                  />
                 </div>
               </div>
 
               <div className="flex gap-4">
-                  <button onClick={() => setShowConfirmModal(false)} className="flex-1 py-6 bg-white/5 text-white border border-white/10 rounded-3xl font-black text-xs uppercase italic tracking-widest active-haptic">EDIT</button>
-                  <button onClick={proceedToPortal} className="flex-1 py-6 bg-blue-600 text-white rounded-3xl font-black text-xs uppercase italic tracking-widest shadow-2xl active-haptic">VERIFY</button>
+                  <button onClick={() => setShowConfirmModal(false)} className="flex-1 py-6 bg-white/5 text-white border border-white/10 rounded-3xl font-black text-xs uppercase italic tracking-widest active-haptic">CANCEL</button>
+                  <button onClick={proceedToPortal} className="flex-1 py-6 bg-blue-600 text-white rounded-3xl font-black text-xs uppercase italic tracking-widest shadow-2xl active-haptic">PROCEED TO REGISTRY</button>
               </div>
             </div>
           </div>
