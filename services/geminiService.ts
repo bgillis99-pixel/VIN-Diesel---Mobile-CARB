@@ -15,8 +15,9 @@ export const validateVINCheckDigit = (vin: string): boolean => {
   const v = vin.toUpperCase();
   if (!isValidVinFormat(v)) return false;
 
+  // Fix: Standardized transliteration map and improved weight-sum logic
   const transliteration: Record<string, number> = { 
-    A:1, B:2, C:3, D:4, E:5, f:6, G:7, H:8, 
+    A:1, B:2, C:3, D:4, E:5, F:6, G:7, H:8, 
     J:1, K:2, L:3, M:4, N:5, P:7, R:9, 
     S:2, T:3, U:4, V:5, W:6, X:7, Y:8, Z:9 
   }; 
@@ -25,8 +26,9 @@ export const validateVINCheckDigit = (vin: string): boolean => {
   let sum = 0; 
   for (let i = 0; i < 17; i++) { 
     const char = v[i]; 
-    const value = isNaN(char as any) ? transliteration[char] : transliteration[char] || 0; 
-    sum += (isNaN(parseInt(char)) ? transliteration[char] : parseInt(char)) * weights[i]; 
+    const isNum = !isNaN(char as any);
+    const value = isNum ? parseInt(char) : (transliteration[char] || 0);
+    sum += value * weights[i]; 
   } 
   
   const remainder = sum % 11; 
@@ -43,20 +45,10 @@ export const repairVin = (vin: string): string => {
 };
 
 /**
- * AI-Driven Marketing Intelligence and Metadata Analysis
+ * AI-Driven Marketing Intelligence
  */
 export const generateMarketingInsights = async (rawMetadata: any): Promise<AIAnalyticsReport> => {
-  const prompt = `Act as a world-class Marketing Strategist for a California Heavy-Duty Compliance firm.
-  Analyze the following application metadata and usage patterns:
-  ${JSON.stringify(rawMetadata)}
-
-  Return a JSON object containing:
-  - "summary": A high-level overview of app health and market penetration.
-  - "marketingStrategy": A 3-point plan to increase conversion (mention specific regions or tactics).
-  - "whatsWorking": A list of successful features or user behaviors identified.
-  - "suggestedActions": A list of technical or marketing steps to take next.
-  
-  Return ONLY valid JSON.`;
+  const prompt = `Analyze application metadata and usage: ${JSON.stringify(rawMetadata)}`;
 
   try {
     const response = await ai.models.generateContent({
@@ -88,23 +80,11 @@ export const generateMarketingInsights = async (rawMetadata: any): Promise<AIAna
 };
 
 /**
- * Enhanced extraction prompt for both VIN and License Plate.
+ * Extraction prompt for both VIN and License Plate.
  */
 export const extractVinAndPlateFromImage = async (file: File | Blob): Promise<{vin: string, plate: string, confidence: string}> => {
   const b64 = await fileToBase64(file);
-  const prompt = `Identify the 17-character VIN and the License Plate number from this vehicle photo.
-
-CRITICAL VIN CHARACTER RESOLUTION:
-1. Standard VINs NEVER contain letters I, O, or Q.
-2. Circle shapes 'O' or 'Q' are ALWAYS digit '0' (ZERO).
-3. Vertical bars 'I' are ALWAYS digit '1' (ONE).
-
-Return ONLY valid JSON:
-{
-  "vin": "EXACT_17_CHAR_VIN",
-  "plate": "LICENSE_PLATE_IF_VISIBLE",
-  "confidence": "high|medium|low"
-}`;
+  const prompt = `Identify VIN and License Plate. Standard VINs NEVER contain I, O, or Q. Circle = 0. Vertical Bar = 1.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -139,21 +119,63 @@ Return ONLY valid JSON:
         confidence: json.confidence || 'low'
     };
   } catch (error) {
-    console.error("Extraction Error:", error);
     return { vin: '', plate: '', confidence: 'low' };
   }
 };
 
 /**
- * Enhanced VIN extraction prompt focusing on field ambiguity.
+ * Batch analysis of multiple truck photos.
  */
-export const extractVinFromImage = async (file: File | Blob): Promise<{vin: string, description: string, confidence: string}> => {
-  const result = await extractVinAndPlateFromImage(file);
-  return {
-    vin: result.vin,
-    description: result.plate ? `Plate detected: ${result.plate}` : 'Optics verification complete.',
-    confidence: result.confidence
-  };
+// Fix: Added missing export batchAnalyzeTruckImages to resolve compilation error
+export const batchAnalyzeTruckImages = async (files: (File | Blob)[]): Promise<ExtractedTruckData> => {
+  const parts = await Promise.all(files.map(async (file) => {
+    const b64 = await fileToBase64(file);
+    return { inlineData: { mimeType: file.type || 'image/jpeg', data: b64 } };
+  }));
+
+  const prompt = `Analyze these truck-related photos (VIN, license plate, odometer, engine tag, etc.) and extract relevant data for California Clean Truck Check (CTC) compliance. 
+  Focus on: VIN, License Plate, Mileage (Odometer), Engine Details (Family Name, Manufacturer, Model, Year), and Dot Number. 
+  Standard VINs NEVER contain I, O, or Q. Circle = 0. Vertical Bar = 1.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAMES.FLASH,
+      contents: {
+        parts: [...parts, { text: prompt }]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            vin: { type: Type.STRING },
+            licensePlate: { type: Type.STRING },
+            mileage: { type: Type.STRING },
+            registeredOwner: { type: Type.STRING },
+            contactName: { type: Type.STRING },
+            contactEmail: { type: Type.STRING },
+            contactPhone: { type: Type.STRING },
+            engineFamilyName: { type: Type.STRING },
+            engineManufacturer: { type: Type.STRING },
+            engineModel: { type: Type.STRING },
+            engineYear: { type: Type.STRING },
+            eclCondition: { type: Type.STRING },
+            dotNumber: { type: Type.STRING },
+            inspectionDate: { type: Type.STRING },
+            inspectionLocation: { type: Type.STRING },
+            confidence: { type: Type.STRING }
+          }
+        }
+      }
+    });
+
+    const json = JSON.parse(response.text || '{}');
+    if (json.vin) json.vin = repairVin(json.vin);
+    return json;
+  } catch (error) {
+    console.error("Batch Analysis Error:", error);
+    return { confidence: 'low' };
+  }
 };
 
 export const sendMessage = async (
@@ -164,19 +186,13 @@ export const sendMessage = async (
   imageData?: { data: string, mimeType: string }
 ) => {
     try {
-        let modelName = mode === 'thinking' ? MODEL_NAMES.PRO : MODEL_NAMES.FLASH;
+        let modelName = mode === 'thinking' ? MODEL_NAMES.PRO : MODEL_NAMES.FLASH_LITE;
         const config: any = { 
-            systemInstruction: `You are 'VIN DIESEL AI', the official regulatory assistant for California Clean Truck Check (CTC).
-            You ONLY answer questions related to CARB regulations, HD I/M protocols, and CTC compliance.
-            Rule #1: Standard VINs NEVER contain I, O, or Q.
-            Rule #2: Direct users to register in the CTC-VIS portal for official compliance.
-            Rule #3: If a user asks a non-CARB question, politely decline and steer them back to trucking compliance.
-            Tone: Professional, credentialed, and focused on helping testers and fleets avoid state hotline waits.
-            Support Reference: "Text/Call: 617-359-6953"`,
+            systemInstruction: `You are 'VIN DIESEL AI', the regulatory assistant for California Clean Truck Check (CTC). ONLY answer CARB/CTC related questions. Tone: Professional and efficient.`,
             tools: [{ googleSearch: {} }]
         };
         
-        if (mode === 'thinking') config.thinkingConfig = { thinkingBudget: 24000 };
+        if (mode === 'thinking') config.thinkingConfig = { thinkingBudget: 32768 };
 
         const currentParts: any[] = [];
         if (imageData) currentParts.push({ inlineData: imageData });
@@ -192,7 +208,7 @@ export const sendMessage = async (
         const urls = chunks.map((c: any) => ({ uri: c.web?.uri || c.maps?.uri, title: c.web?.title || c.maps?.title })).filter((u: any) => u.uri);
 
         return {
-            text: response.text || "CARB database connection unstable.",
+            text: response.text || "CARB database offline.",
             groundingUrls: urls
         };
     } catch (e) { throw e; }
@@ -200,8 +216,8 @@ export const sendMessage = async (
 
 export const findTestersNearby = async (zipCode: string) => {
     const response = await ai.models.generateContent({
-        model: MODEL_NAMES.FLASH,
-        contents: `Locate certified HD smoke testing stations near ${zipCode} in California.`,
+        model: 'gemini-2.5-flash',
+        contents: `Certified HD smoke testing stations near ${zipCode} CA.`,
         config: { tools: [{ googleMaps: {} }] }
     });
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
@@ -209,48 +225,6 @@ export const findTestersNearby = async (zipCode: string) => {
         text: response.text, 
         locations: chunks.filter((c: any) => c.maps).map((c: any) => ({ title: c.maps.title, uri: c.maps.uri })) || []
     };
-};
-
-export const batchAnalyzeTruckImages = async (files: File[]): Promise<ExtractedTruckData> => {
-    const parts: any[] = [];
-    for (const f of files) {
-        const b64 = await fileToBase64(f);
-        parts.push({ inlineData: { mimeType: f.type, data: b64 } });
-    }
-    parts.push({ text: "Perform compliance inspection. Extract VIN (apply I/O/Q rule), Engine Family, Mileage. JSON." });
-
-    const response = await ai.models.generateContent({
-      model: MODEL_NAMES.FLASH,
-      contents: { parts },
-      config: { responseMimeType: "application/json" }
-    });
-    return JSON.parse(response.text || '{}');
-};
-
-export const scoutTruckLead = async (file: File): Promise<Lead> => {
-    const b64 = await fileToBase64(file);
-    const response = await ai.models.generateContent({
-        model: MODEL_NAMES.FLASH,
-        contents: {
-            parts: [
-                { inlineData: { mimeType: file.type, data: b64 } },
-                { text: "Scout company name and DOT number from vehicle exterior. JSON." }
-            ]
-        },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    company: { type: Type.STRING },
-                    phone: { type: Type.STRING },
-                    dotNumber: { type: Type.STRING },
-                    location: { type: Type.STRING }
-                }
-            }
-        }
-    });
-    return JSON.parse(response.text || '{}');
 };
 
 const fileToBase64 = (file: File | Blob): Promise<string> => {

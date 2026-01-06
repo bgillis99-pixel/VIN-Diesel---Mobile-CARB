@@ -175,15 +175,6 @@ const App: React.FC = () => {
             </div>
         </main>
 
-        {currentView !== AppView.ASSISTANT && currentView !== AppView.INTAKE && (
-          <button 
-            onClick={() => setCurrentView(AppView.ASSISTANT)}
-            className="fixed bottom-24 right-6 w-16 h-16 bg-carb-accent text-white rounded-full shadow-[0_10px_30px_rgba(59,130,246,0.6)] flex items-center justify-center z-[150] active-haptic animate-pulse-slow border-2 border-white/30"
-          >
-            <span className="text-3xl">🤖</span>
-          </button>
-        )}
-
         {currentView !== AppView.HOME && currentView !== AppView.INTAKE && (
              <button 
                 onClick={() => setCurrentView(AppView.HOME)}

@@ -51,16 +51,14 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools }) => {
 
   return (
     <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center px-6 text-center animate-in fade-in duration-1000 relative overflow-hidden">
-      {/* Background visual elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse-slow"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-green-500/10 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 rounded-full blur-[120px]"></div>
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
       </div>
 
       <div className="relative z-10 max-w-2xl w-full space-y-12">
         <div className="space-y-8">
-          {/* Top Pill */}
           <div className="inline-flex items-center gap-3 px-8 py-3 rounded-full bg-blue-600/10 border border-blue-500/30 backdrop-blur-md mx-auto">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 italic">
@@ -68,45 +66,41 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools }) => {
             </span>
           </div>
 
-          {/* Quick Actions Row */}
-          <div className="flex justify-between items-end gap-2 w-full max-w-lg mx-auto">
-              <a href="tel:6173596953" className="flex flex-col items-center gap-2 group transition-all active-haptic flex-1">
+          <div className="flex justify-between items-end gap-2 w-full max-w-lg mx-auto pb-4">
+              <a href="tel:6173596953" className="flex-1 flex flex-col items-center gap-2 group transition-all active-haptic">
                   <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-blue-600/20 group-hover:border-blue-500/40 transition-colors">
                     {PHONE_ICON}
                   </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors">617-359-6953</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">617-359-6953</span>
               </a>
-              <button onClick={onLaunch} className="flex flex-col items-center gap-2 group transition-all active-haptic flex-1">
+              <button onClick={onLaunch} className="flex-1 flex flex-col items-center gap-2 group transition-all active-haptic">
                   <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-blue-600/20 group-hover:border-blue-500/40 transition-colors">
                     {DOWNLOAD_ICON}
                   </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors">Download App</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">Download App</span>
               </button>
-              <button onClick={handleShare} className="flex flex-col items-center gap-2 group transition-all active-haptic flex-1">
+              <button onClick={handleShare} className="flex-1 flex flex-col items-center gap-2 group transition-all active-haptic">
                   <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-blue-600/20 group-hover:border-blue-500/40 transition-colors">
                     {SHARE_ICON}
                   </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors">Share App</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">Share App</span>
               </button>
-              <button onClick={onNavigateTools} className="flex flex-col items-center gap-2 group transition-all active-haptic flex-1">
+              <button onClick={onNavigateTools} className="flex-1 flex flex-col items-center gap-2 group transition-all active-haptic">
                   <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-blue-600/20 group-hover:border-blue-500/40 transition-colors">
                     {TESTER_ICON}
                   </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors">Find Tester</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">Find Tester</span>
               </button>
           </div>
         </div>
 
-        {/* 17-Digit Rule Card (Main Action) */}
-        <div className="bg-black/40 border border-white/10 rounded-[3.5rem] p-10 backdrop-blur-3xl shadow-[0_50px_100px_rgba(0,0,0,0.8)] space-y-10 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-            
-            <div className="space-y-6">
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">The 17-Digit Rule</h2>
-                <p className="text-sm text-gray-400 leading-relaxed px-6 max-w-md mx-auto">
-                    VINs <span className="text-white font-black uppercase">Never</span> contain the letter "O", "I", or "Q". <br />
-                    If you see a circle, it is <span className="text-white font-black uppercase underline decoration-blue-500 underline-offset-4">Always</span> a zero (0).
-                </p>
+        <div className="bg-white/5 border border-white/10 rounded-[4rem] p-12 backdrop-blur-3xl shadow-[0_50px_100px_rgba(0,0,0,0.8)] space-y-10">
+            <div className="space-y-4">
+                <h1 className="text-4xl sm:text-6xl font-black italic tracking-tighter text-white uppercase leading-none">
+                  Compliance <br />
+                  <span className="text-blue-500">Hub</span>
+                </h1>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.5em] italic">READY FOR 12/26/2025</p>
             </div>
             
             <button 
@@ -114,12 +108,11 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools }) => {
                 className="w-full group relative overflow-hidden py-10 bg-blue-600 text-white font-black rounded-[2.5rem] uppercase tracking-[0.4em] italic text-sm shadow-[0_20px_50px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500 hover:scale-[1.02] active:scale-[0.98]"
             >
                 <span className="relative z-10">OPEN CHECKER HUB</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
             </button>
         </div>
 
-        <div className="pt-6 space-y-4">
-            <p className="text-[10px] font-black text-gray-700 uppercase tracking-[0.5em] italic">
+        <div className="pt-6">
+            <p className="text-[10px] font-black text-gray-800 uppercase tracking-[0.5em] italic">
                 Regulatory Assistant v12.26
             </p>
         </div>
