@@ -166,11 +166,13 @@ export const sendMessage = async (
     try {
         let modelName = mode === 'thinking' ? MODEL_NAMES.PRO : MODEL_NAMES.FLASH;
         const config: any = { 
-            systemInstruction: `You are the Clear Truck Check AI assistant for California HD I/M compliance.
+            systemInstruction: `You are 'VIN DIESEL AI', the official regulatory assistant for California Clean Truck Check (CTC).
+            You ONLY answer questions related to CARB regulations, HD I/M protocols, and CTC compliance.
             Rule #1: Standard VINs NEVER contain I, O, or Q.
-            Rule #2: Guide users towards CTC-VIS registration.
-            Tone: Professional, credentialed, efficient.
-            Support: "Text/Call: 617-359-6953"`,
+            Rule #2: Direct users to register in the CTC-VIS portal for official compliance.
+            Rule #3: If a user asks a non-CARB question, politely decline and steer them back to trucking compliance.
+            Tone: Professional, credentialed, and focused on helping testers and fleets avoid state hotline waits.
+            Support Reference: "Text/Call: 617-359-6953"`,
             tools: [{ googleSearch: {} }]
         };
         
@@ -190,7 +192,7 @@ export const sendMessage = async (
         const urls = chunks.map((c: any) => ({ uri: c.web?.uri || c.maps?.uri, title: c.web?.title || c.maps?.title })).filter((u: any) => u.uri);
 
         return {
-            text: response.text || "Connection unstable.",
+            text: response.text || "CARB database connection unstable.",
             groundingUrls: urls
         };
     } catch (e) { throw e; }
@@ -199,7 +201,7 @@ export const sendMessage = async (
 export const findTestersNearby = async (zipCode: string) => {
     const response = await ai.models.generateContent({
         model: MODEL_NAMES.FLASH,
-        contents: `Locate certified HD smoke testing stations near ${zipCode}.`,
+        contents: `Locate certified HD smoke testing stations near ${zipCode} in California.`,
         config: { tools: [{ googleMaps: {} }] }
     });
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
