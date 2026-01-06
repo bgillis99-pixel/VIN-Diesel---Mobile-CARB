@@ -1,3 +1,4 @@
+
 declare global {
   interface Window {
     dataLayer: any[];
@@ -44,6 +45,7 @@ export const trackPageView = (pageName: string) => {
 
 export const trackEvent = (eventName: string, params?: Record<string, any>) => {
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', eventName, params);
-  }
-};
+    window.gtag('event', eventName, {
+        ...params,
+        timestamp: Date.now(),
+        ua: navigator
