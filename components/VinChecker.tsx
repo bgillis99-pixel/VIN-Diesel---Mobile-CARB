@@ -1,14 +1,35 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { extractVinFromImage, findTestersNearby, validateVINCheckDigit, isValidVinFormat } from '../services/geminiService';
+import { extractVinFromImage, findTestersNearby, validateVINCheckDigit, isValidVinFormat, repairVin } from '../services/geminiService';
 import { decodeVinNHTSA, NHTSAVehicle } from '../services/nhtsa';
 import { trackEvent } from '../services/analytics';
+
+const PHONE_ICON = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+);
+
+const MESSAGE_ICON = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+);
+
+const EMAIL_ICON = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+);
+
+const SHARE_ICON = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+);
+
+const SCREENSHOT_ICON = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+);
 
 const CAMERA_ICON = (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
 );
 
-const TESTER_ICON = (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+const SUBMIT_ICON = (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
 );
 
 interface Props {
@@ -18,270 +39,348 @@ interface Props {
   onNavigateTools: () => void;
 }
 
-const VinChecker: React.FC<Props> = ({ onAddToHistory, onNavigateChat, onShareApp, onNavigateTools }) => {
+const VinChecker: React.FC<Props> = ({ onNavigateChat, onNavigateTools }) => {
   const [inputVal, setInputVal] = useState('');
   const [searchMode, setSearchMode] = useState<'VIN' | 'OWNER'>('VIN');
   const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('DIAGNOSING...');
   const [formatError, setFormatError] = useState<string | null>(null);
   const [vehicleDetails, setVehicleDetails] = useState<NHTSAVehicle | null>(null);
-  
-  const [zipCode, setZipCode] = useState('');
-  const [showTesterSearch, setShowTesterSearch] = useState(false);
-  const [testerResult, setTesterResult] = useState<any>(null);
-  const [searchingTesters, setSearchingTesters] = useState(false);
+  const [vinVerified, setVinVerified] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showResultScreen, setShowResultScreen] = useState<'compliant' | 'non-compliant' | null>(null);
 
-  const [showQuestions, setShowQuestions] = useState(false);
-  const [showSuccessReceipt, setShowSuccessReceipt] = useState(false);
-  const [answers, setAnswers] = useState({ smoke: false, engine: false, visual: false });
-
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  // Live Scanner States
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!inputVal) {
+        setFormatError(null);
+        setVinVerified(false);
+        setVehicleDetails(null);
+        return;
+    }
+    
     const timer = setTimeout(async () => {
-        const val = inputVal.trim().toUpperCase();
-        if (searchMode === 'VIN' && isValidVinFormat(val)) {
-            setFormatError(null);
-            if (!validateVINCheckDigit(val)) {
-                setFormatError('VIN Check Digit Failed (Typo likely)');
-                setVehicleDetails(null);
-                return;
+        const val = repairVin(inputVal.trim().toUpperCase());
+        if (searchMode === 'VIN') {
+            if (val.length === 17) {
+                if (!validateVINCheckDigit(val)) {
+                    setFormatError('Check Digit mismatch. Invalid VIN.');
+                    setVinVerified(false);
+                    return;
+                }
+                setFormatError(null);
+                const data = await decodeVinNHTSA(val);
+                if (data && data.valid) {
+                    setVehicleDetails(data);
+                    setVinVerified(true);
+                }
+            } else if (val.length > 0) {
+                setVinVerified(false);
+                if (val.length > 17) setFormatError('17 characters exactly.');
+                else if (/[IOQ]/.test(val)) setFormatError('Note: Use 0 (Zero), never O (Letter).');
             }
-            const data = await decodeVinNHTSA(val);
-            if (data && data.valid) setVehicleDetails(data);
-        } else if (searchMode === 'VIN' && inputVal.length > 0) {
-            setVehicleDetails(null);
-            if (inputVal.length < 17) setFormatError('Incomplete VIN (17 chars required)');
-            else if (/[IOQ]/.test(val)) setFormatError('VIN cannot contain I, O, or Q');
-            else setFormatError('Invalid VIN format');
-        } else {
-            setFormatError(null);
         }
-    }, 600);
+    }, 300);
     return () => clearTimeout(timer);
   }, [inputVal, searchMode]);
 
-  const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const startScanner = async () => {
+    setIsScannerOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      console.error("Camera access denied:", err);
+      setIsScannerOpen(false);
+      fileInputRef.current?.click();
+    }
+  };
+
+  const stopScanner = () => {
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setIsScannerOpen(false);
+  };
+
+  const captureFrame = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    setLoading(true);
+    stopScanner();
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) { setLoading(false); return; }
+      try {
+        const result = await extractVinFromImage(blob);
+        if (result.vin && result.vin.length >= 11) {
+            setInputVal(result.vin.toUpperCase());
+            setSearchMode('VIN');
+            trackEvent('vin_scan_success');
+            if (result.vin.length === 17) {
+              setTimeout(() => setShowConfirmModal(true), 600);
+            }
+        } else {
+            setFormatError("Optics failed. Enter manually.");
+        }
+      } catch (err) {
+        setFormatError("AI Error.");
+      } finally {
+        setLoading(false);
+      }
+    }, 'image/jpeg', 0.9);
+  };
+
+  const handleManualFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setLoading(true);
-    setStatusMessage('ANALYZING...');
+    setFormatError(null);
+    setVinVerified(false);
+    
     try {
       const result = await extractVinFromImage(file);
       if (result.vin && result.vin.length >= 11) {
           setInputVal(result.vin.toUpperCase());
           setSearchMode('VIN');
           trackEvent('vin_scan_success');
+          if (result.vin.length === 17) {
+            setTimeout(() => setShowConfirmModal(true), 600);
+          }
       } else {
-          alert("Sensor couldn't lock VIN. TIP: Scan the BARCODE on the door jam sticker.");
+          setFormatError("Optics failed. Enter manually.");
       }
     } catch (err) {
-      alert("AI Processing Link Interrupted.");
+      setFormatError("AI Error.");
     } finally {
       setLoading(false);
-      if(cameraInputRef.current) cameraInputRef.current.value = '';
+      if(fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handleTesterSearch = async () => {
-      if (zipCode.length < 5) return;
-      setSearchingTesters(true);
-      try {
-          const res = await findTestersNearby(zipCode);
-          setTesterResult(res);
-      } catch (e) { alert("Map search failed."); } finally { setSearchingTesters(false); }
+  const proceedToPortal = async () => {
+    setShowConfirmModal(false);
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 1500));
+    setLoading(false);
+    
+    const isCompliant = !isNaN(parseInt(inputVal.slice(-1)));
+    setShowResultScreen(isCompliant ? 'compliant' : 'non-compliant');
+    trackEvent('compliance_check', { result: isCompliant ? 'compliant' : 'non-compliant' });
   };
 
-  const checkCompliance = () => {
-    const val = inputVal.trim().toUpperCase();
-    if (!val) return;
-    if (searchMode === 'VIN') {
-        if (!isValidVinFormat(val)) return alert("Invalid VIN format. 17 chars, no I, O, Q.");
-        if (!validateVINCheckDigit(val)) {
-            if (!confirm("VIN Check Digit failed. TYPO DETECTED in digit 9. Proceed anyway?")) return;
-        }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      let val = e.target.value.toUpperCase();
+      // Enforce the 17-Digit Rule: Never I, O, Q
+      val = val.replace(/O/g, '0').replace(/Q/g, '0').replace(/I/g, '1');
+      setInputVal(val);
+  };
+
+  const handleShareResult = async () => {
+    const text = `Compliance Report for VIN: ${inputVal}. Result: ${showResultScreen?.toUpperCase()}`;
+    if (navigator.share) {
+        await navigator.share({ title: 'Compliance Report', text });
+    } else {
+        window.location.href = `mailto:?subject=Compliance Report&body=${encodeURIComponent(text)}`;
     }
-    onAddToHistory(val, searchMode === 'OWNER' ? 'ENTITY' : 'VIN');
-    setShowQuestions(true);
   };
 
-  const finishProtocol = () => {
-    if (!answers.smoke || !answers.engine || !answers.visual) return alert("Verify all compliance steps!");
-    setShowQuestions(false);
-    setShowSuccessReceipt(true);
-    trackEvent('compliance_receipt_view');
-  };
+  if (showResultScreen) {
+    const isCompliant = showResultScreen === 'compliant';
+    return (
+        <div className={`fixed inset-0 z-[600] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500 ${isCompliant ? 'bg-[#052e16]' : 'bg-[#450a0a]'}`}>
+            <div className="max-w-md w-full space-y-10 text-center">
+                <div className={`w-32 h-32 rounded-full mx-auto flex items-center justify-center border-4 ${isCompliant ? 'bg-green-600/20 border-green-500 text-green-500' : 'bg-red-600/20 border-red-500 text-red-500'}`}>
+                    {isCompliant ? (
+                        <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                    ) : (
+                        <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                    )}
+                </div>
 
-  if (showQuestions) {
-      return (
-          <div className="fixed inset-0 z-[300] bg-carb-navy p-6 flex flex-col pt-20">
-              <header className="text-center mb-10">
-                  <h2 className="text-2xl font-black italic uppercase italic">OVI Verification</h2>
-                  <p className="text-[10px] font-black text-carb-accent tracking-[0.4em] uppercase">Compliance Protocol</p>
-              </header>
-              <div className="flex-1 space-y-4">
-                  {[
-                      { k: 'smoke', l: 'Smoke Opacity Passed', e: '💨' },
-                      { k: 'engine', l: 'ECL Label Present', e: '🏷️' },
-                      { k: 'visual', l: 'Visual Inspection OK', e: '🔍' }
-                  ].map(q => (
-                      <button 
-                        key={q.k}
-                        onClick={() => setAnswers({...answers, [q.k]: !answers[q.k as keyof typeof answers]})}
-                        className={`w-full p-6 rounded-3xl border flex items-center justify-between transition-all ${answers[q.k as keyof typeof answers] ? 'bg-green-500 text-black border-green-500' : 'bg-black/40 border-white/20'}`}
-                      >
-                          <span className={`text-[11px] font-black uppercase italic ${answers[q.k as keyof typeof answers] ? 'text-black' : 'text-white'}`}>{q.e} {q.l}</span>
-                          <div className={`w-6 h-6 rounded-full border-2 ${answers[q.k as keyof typeof answers] ? 'bg-black border-black' : 'border-white/40'}`}></div>
-                      </button>
-                  ))}
-              </div>
-              <button onClick={finishProtocol} className="w-full py-6 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest mt-8 italic shadow-2xl active-haptic">Confirm Record</button>
-              <button onClick={() => setShowQuestions(false)} className="w-full py-4 text-gray-500 text-[10px] font-bold uppercase mt-2">Cancel</button>
-          </div>
-      );
-  }
+                <div className="space-y-4">
+                    <h2 className={`text-4xl font-black italic uppercase tracking-tighter ${isCompliant ? 'text-green-500' : 'text-red-500'}`}>
+                        {isCompliant ? 'Congratulations!' : 'Alert: Non-Compliant'}
+                    </h2>
+                    <p className="text-white text-xl font-bold uppercase tracking-wide">
+                        Your vehicle is {isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT'}
+                    </p>
+                    <p className="text-gray-400 font-mono text-sm tracking-widest">{inputVal}</p>
+                    {!isCompliant && (
+                        <div className="bg-white/5 p-6 rounded-3xl border border-white/10 mt-6">
+                            <p className="text-sm text-white/90 font-medium leading-relaxed italic">
+                                Reason: Emissions testing overdue or fee unpaid in CTC-VIS registry.
+                            </p>
+                        </div>
+                    )}
+                </div>
 
-  if (showSuccessReceipt) {
-      return (
-          <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-6 backdrop-blur-xl">
-              <div className="bg-white rounded-[3rem] w-full max-w-sm overflow-hidden text-carb-navy shadow-[0_30px_60px_rgba(0,0,0,0.5)]">
-                  <div className="h-32 bg-blue-600 flex items-center justify-center">
-                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-blue-600 text-3xl shadow-xl">✓</div>
-                  </div>
-                  <div className="p-8 space-y-6">
-                      <div className="text-center">
-                          <h2 className="text-xl font-black uppercase italic">Protocol Certified</h2>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">OVI Inspection Summary</p>
-                      </div>
-                      <div className="space-y-3 pt-4 border-t border-gray-100">
-                          <div className="flex justify-between text-[10px] font-bold uppercase"><span>VIN</span><span className="font-mono">{inputVal}</span></div>
-                          <div className="flex justify-between text-[10px] font-bold uppercase"><span>Status</span><span className="text-green-600">Compliant</span></div>
-                          <div className="flex justify-between text-[10px] font-bold uppercase"><span>Date</span><span>{new Date().toLocaleDateString()}</span></div>
-                      </div>
-                      <button onClick={() => window.print()} className="w-full py-4 bg-carb-navy text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl italic active-haptic">Print PDF</button>
-                      <button onClick={() => {setShowSuccessReceipt(false); setInputVal('');}} className="w-full py-4 border-2 border-carb-navy rounded-2xl font-black uppercase text-[10px] tracking-widest italic active-haptic">Dismiss</button>
-                  </div>
-              </div>
-          </div>
-      );
+                <div className="grid grid-cols-1 gap-4 pt-4">
+                    {isCompliant ? (
+                        <>
+                            <button onClick={handleShareResult} className="w-full flex items-center justify-center gap-4 py-6 bg-white text-black rounded-[2rem] font-black uppercase tracking-widest text-sm active-haptic">
+                                {SHARE_ICON} SHARE REPORT
+                            </button>
+                            <button onClick={() => window.print()} className="w-full flex items-center justify-center gap-4 py-6 bg-white/10 text-white rounded-[2rem] font-black uppercase tracking-widest text-sm active-haptic border border-white/20">
+                                {SCREENSHOT_ICON} SAVE SCREENSHOT
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-3 gap-3">
+                                <a href="tel:6173596953" className="flex flex-col items-center gap-2 p-6 bg-red-600 text-white rounded-3xl active-haptic shadow-lg">
+                                    {PHONE_ICON} <span className="text-[9px] font-black uppercase">Call Me</span>
+                                </a>
+                                <a href="sms:6173596953" className="flex flex-col items-center gap-2 p-6 bg-white/10 text-white rounded-3xl border border-white/10 active-haptic">
+                                    {MESSAGE_ICON} <span className="text-[9px] font-black uppercase">Text Me</span>
+                                </a>
+                                <a href="mailto:bgillis99@gmail.com" className="flex flex-col items-center gap-2 p-6 bg-white/10 text-white rounded-3xl border border-white/10 active-haptic">
+                                    {EMAIL_ICON} <span className="text-[9px] font-black uppercase">Email Me</span>
+                                </a>
+                            </div>
+                            <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest pt-4">
+                                Contact me to discuss how to get compliant
+                            </p>
+                        </>
+                    )}
+                </div>
+
+                <button onClick={() => setShowResultScreen(null)} className="text-gray-500 text-[11px] font-black uppercase tracking-[0.4em] hover:text-white pt-6">
+                    ← BACK TO HUB
+                </button>
+            </div>
+        </div>
+    );
   }
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-8">
-      <input type="file" ref={cameraInputRef} onChange={handleScan} accept="image/*" capture="environment" className="hidden" />
+    <div className="w-full max-w-md mx-auto space-y-12 pb-10">
+      <input type="file" ref={fileInputRef} onChange={handleManualFile} accept="image/*" className="hidden" />
+      <canvas ref={canvasRef} className="hidden" />
 
-      {/* 1. MANUAL ENTRY AT THE TOP - HIGHER CONTRAST */}
+      {/* Manual Input Section */}
       <div className="space-y-4">
-          <div className="flex justify-center gap-6">
-              <button onClick={() => setSearchMode('VIN')} className={`text-[9px] font-black uppercase tracking-widest italic pb-1 border-b-2 transition-all ${searchMode === 'VIN' ? 'border-blue-500 text-white' : 'border-transparent text-gray-600 hover:text-gray-400'}`}>Manual VIN</button>
-              <button onClick={() => setSearchMode('OWNER')} className={`text-[9px] font-black uppercase tracking-widest italic pb-1 border-b-2 transition-all ${searchMode === 'OWNER' ? 'border-blue-500 text-white' : 'border-transparent text-gray-600 hover:text-gray-400'}`}>Entity Search</button>
+          <div className="flex justify-center gap-10 mb-4">
+              <button onClick={() => setSearchMode('VIN')} className={`text-[12px] font-black uppercase tracking-[0.3em] italic pb-2 border-b-4 transition-all ${searchMode === 'VIN' ? 'border-carb-accent text-white' : 'border-transparent text-gray-700'}`}>VERIFY VIN</button>
+              <button onClick={() => setSearchMode('OWNER')} className={`text-[12px] font-black uppercase tracking-[0.3em] italic pb-2 border-b-4 transition-all ${searchMode === 'OWNER' ? 'border-carb-accent text-white' : 'border-transparent text-gray-700'}`}>ENTITY LINK</button>
           </div>
 
-          <div className="relative">
-              <input 
-                value={inputVal}
-                onChange={e => setInputVal(e.target.value.toUpperCase())}
-                placeholder={searchMode === 'VIN' ? "ENTER 17 CHAR VIN" : "ENTER ENTITY ID"}
-                className={`w-full bg-black/40 text-white border-2 rounded-[2rem] py-6 text-center text-xl font-black outline-none transition-all placeholder:text-gray-700 ${formatError ? 'border-red-500' : 'border-white/10 focus:border-blue-500'} shadow-xl`}
-              />
-              {formatError && <p className="absolute -bottom-5 left-0 right-0 text-center text-[8px] font-black text-red-500 uppercase tracking-widest">{formatError}</p>}
+          <div className="space-y-3 px-1">
+              <div className="text-[11px] font-black text-blue-500 uppercase tracking-[0.4em] italic px-10 mb-2">
+                {searchMode === 'VIN' ? 'ENTER VIN HERE' : 'ENTER ENTITY ID'}
+              </div>
+              <div className="relative">
+                  <div className={`absolute -inset-1 rounded-[3.5rem] blur-sm opacity-40 transition-all duration-700 ${formatError ? 'bg-red-500' : (vinVerified ? 'bg-green-500' : 'bg-blue-600')}`}></div>
+                  <div className="relative flex items-center">
+                    <input 
+                      value={inputVal}
+                      onChange={handleInputChange}
+                      onKeyDown={(e) => e.key === 'Enter' && inputVal.length === 17 && setShowConfirmModal(true)}
+                      placeholder={searchMode === 'VIN' ? "17-CHARS" : "ID#"}
+                      className={`relative w-full bg-black/90 text-white border border-white/10 rounded-[3.5rem] py-12 pl-12 pr-28 text-center text-4xl font-black outline-none transition-all placeholder:text-gray-800 ${formatError ? 'border-red-500' : (vinVerified ? 'border-green-500' : 'focus:border-blue-500')} shadow-[0_30px_60px_rgba(0,0,0,0.6)] tracking-[0.1em] vin-monospace`}
+                    />
+                    <button onClick={() => inputVal.length === 17 && setShowConfirmModal(true)} className={`absolute right-6 w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-90 shadow-2xl ${vinVerified ? 'bg-green-600 text-white' : 'bg-white/5 text-gray-800'}`}>
+                      {SUBMIT_ICON}
+                    </button>
+                  </div>
+                  {formatError && <p className="absolute -bottom-14 left-0 right-0 text-center text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">{formatError}</p>}
+                  {vinVerified && <p className="absolute -bottom-12 left-0 right-0 text-center text-[10px] font-black text-green-500 uppercase tracking-widest italic">{vehicleDetails?.year} {vehicleDetails?.make} IDENTIFIED</p>}
+              </div>
           </div>
-          
-          <button 
-            onClick={checkCompliance} 
-            disabled={loading || !inputVal} 
-            className="w-full py-5 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-[11px] active-haptic shadow-[0_10px_30px_rgba(37,99,235,0.3)] disabled:opacity-30 italic transition-all hover:bg-blue-500"
-          >
-            Verify Compliance Protocol
+      </div>
+
+      {/* Main Action Hub */}
+      <div className="grid grid-cols-2 gap-6 pt-2">
+          <button onClick={startScanner} disabled={loading} className="w-full group bg-white p-12 rounded-[3.5rem] flex flex-col items-center justify-center gap-4 active-haptic shadow-2xl border-4 border-gray-100">
+                <div className="text-carb-accent">{CAMERA_ICON}</div>
+                <div className="text-center">
+                    <span className="font-black text-sm tracking-widest uppercase italic text-carb-navy block">SCAN VIN</span>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.25em] mt-2 italic">LIVE OPTICS</p>
+                </div>
+          </button>
+          <button onClick={() => onNavigateTools()} className="w-full group bg-black/60 p-12 rounded-[3.5rem] flex flex-col items-center justify-center gap-4 active-haptic border-4 border-white/10 shadow-xl">
+                <div className="text-carb-accent">
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </div>
+                <div className="text-center">
+                    <span className="font-black text-sm tracking-widest uppercase italic text-white block">TESTER HUB</span>
+                    <p className="text-[9px] font-bold text-gray-600 uppercase tracking-[0.25em] mt-2 italic">LOCAL STATIONS</p>
+                </div>
           </button>
       </div>
 
-      {/* 2. DUAL ACTION GRID: SCAN & FIND TESTER */}
-      <div className="grid grid-cols-2 gap-4">
-          {/* SCAN BUTTON - VIBRANT */}
-          <button 
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={loading}
-            className="group relative overflow-hidden bg-white text-carb-navy p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-3 active-haptic shadow-2xl"
-          >
-              <div className="w-12 h-12 rounded-full bg-blue-600/10 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                  {CAMERA_ICON}
+      {/* Confirm Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[500] bg-black/98 backdrop-blur-3xl flex items-center justify-center p-4">
+          <div className="bg-[#020617] border border-white/10 rounded-[4rem] w-full max-w-xl overflow-hidden shadow-[0_50px_150px_rgba(0,0,0,1)] animate-in zoom-in duration-300">
+            <div className="bg-blue-600 p-12 text-center relative overflow-hidden">
+              <h2 className="text-3xl font-black italic uppercase text-white tracking-tight relative z-10">Accuracy Validation</h2>
+              <p className="text-[14px] font-black text-white/80 uppercase tracking-widest mt-3 relative z-10">Verify before registry submission</p>
+            </div>
+            
+            <div className="p-10 space-y-12">
+              <div className="bg-black/80 p-10 rounded-[3rem] border border-white/10 text-center">
+                <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+                  {inputVal.split('').map((char, i) => (
+                      <div key={i} className="flex flex-col items-center">
+                        <span className={`vin-monospace text-5xl sm:text-6xl font-black w-14 sm:w-16 h-16 sm:h-20 flex items-center justify-center rounded-2xl border-2 text-white bg-white/5 border-white/10`}>
+                          {char}
+                        </span>
+                        <span className="text-[9px] text-gray-800 font-bold mt-3 uppercase tracking-tighter">Pos {i + 1}</span>
+                      </div>
+                  ))}
+                </div>
               </div>
-              <div className="text-center">
-                  <span className="font-black text-[11px] tracking-widest uppercase italic leading-none">
-                      {loading ? '...' : 'Scan VIN'}
-                  </span>
-                  <p className="text-[7px] font-bold text-gray-500 uppercase tracking-widest mt-1">Barcode Sensor</p>
-              </div>
-          </button>
 
-          {/* FIND TESTER BUTTON - ACCENT */}
-          <button 
-            onClick={() => setShowTesterSearch(true)}
-            className="group bg-black/40 p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-3 active-haptic border border-white/20 shadow-xl hover:border-blue-500/50 transition-all"
-          >
-              <div className="w-12 h-12 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-                  {TESTER_ICON}
+              <div className="flex gap-6">
+                  <button onClick={() => setShowConfirmModal(false)} className="flex-1 py-8 bg-white/5 text-white border border-white/10 rounded-[2.5rem] font-black text-sm uppercase italic tracking-[0.2em] active-haptic">NO / EDIT</button>
+                  <button onClick={proceedToPortal} className="flex-1 py-8 bg-blue-600 text-white rounded-[2.5rem] font-black text-sm uppercase italic tracking-[0.2em] shadow-2xl shadow-blue-600/30 active-haptic">YES / VERIFY</button>
               </div>
-              <div className="text-center">
-                  <span className="font-black text-[11px] tracking-widest uppercase italic text-white leading-none">Find Tester</span>
-                  <p className="text-[7px] font-bold text-gray-600 uppercase tracking-widest mt-1">Mobile Hub</p>
-              </div>
-          </button>
-      </div>
-
-      {/* 3. RESULTS & EXTRAS */}
-      {vehicleDetails && (
-          <div className="bg-black/60 p-6 rounded-[2.5rem] border border-blue-500/40 animate-in zoom-in duration-500 shadow-2xl">
-              <div className="flex justify-between items-center mb-2">
-                  <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest italic">NHTSA Verified</span>
-                  <span className="text-[8px] font-black text-gray-500 uppercase">GVWR: {vehicleDetails.gvwr}</span>
-              </div>
-              <h4 className="text-sm font-black text-white italic uppercase tracking-tight">{vehicleDetails.year} {vehicleDetails.make}</h4>
-              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">{vehicleDetails.model} • {vehicleDetails.engineMfr}</p>
+            </div>
           </div>
+        </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-          <button onClick={onNavigateChat} className="bg-black/40 p-4 rounded-[2rem] flex items-center gap-3 border border-white/10 active-haptic shadow-lg hover:bg-white/5 transition-colors">
-              <span className="text-xl">🤖</span>
-              <span className="text-[8px] font-black uppercase tracking-widest italic text-gray-400">Ask AI</span>
-          </button>
-          <button onClick={onNavigateTools} className="bg-black/40 p-4 rounded-[2rem] flex items-center gap-3 border border-white/10 active-haptic shadow-lg hover:bg-white/5 transition-colors">
-              <span className="text-xl">🏗️</span>
-              <span className="text-[8px] font-black uppercase tracking-widest italic text-gray-400">Hub</span>
-          </button>
-      </div>
-
-      {showTesterSearch && (
-          <div className="fixed inset-0 z-[400] bg-carb-navy p-8 pt-safe flex flex-col animate-in slide-in-from-right duration-500">
-              <button onClick={() => {setShowTesterSearch(false); setTesterResult(null);}} className="text-gray-500 text-[9px] font-black uppercase mb-10 flex items-center gap-2 hover:text-white transition-colors">‹ BACK TO HUB</button>
-              <div className="bg-black/40 p-10 rounded-[3rem] border border-white/10 text-center mb-10 shadow-2xl">
-                  <h3 className="text-2xl font-black italic uppercase mb-6 text-white tracking-tighter">Dispatch Station</h3>
-                  <input 
-                    type="tel"
-                    value={zipCode}
-                    onChange={e => setZipCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="ZIP CODE"
-                    className="w-full bg-transparent text-7xl font-light text-white outline-none text-center placeholder:text-gray-800"
-                    maxLength={5}
-                  />
-                  <button onClick={handleTesterSearch} disabled={searchingTesters || zipCode.length < 5} className="mt-8 px-10 py-4 bg-blue-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest italic shadow-xl active-haptic">
-                      {searchingTesters ? 'PINGING...' : 'Verify Zone'}
-                  </button>
+      {/* Live Scanner Viewfinder Modal */}
+      {isScannerOpen && (
+        <div className="fixed inset-0 z-[700] bg-black flex flex-col">
+          <div className="flex-1 relative overflow-hidden">
+            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+            {/* Guide Overlay */}
+            <div className="absolute inset-0 border-[60px] border-black/60 pointer-events-none flex items-center justify-center">
+              <div className="w-full h-24 border-2 border-white/40 rounded-xl relative shadow-[0_0_0_1000px_rgba(0,0,0,0.4)]">
+                <div className="absolute -top-10 left-0 right-0 text-center">
+                  <span className="text-[10px] font-black uppercase text-white tracking-[0.3em]">Align VIN/Barcode within frame</span>
+                </div>
               </div>
-              {testerResult && (
-                  <div className="flex-1 overflow-y-auto space-y-4">
-                      {testerResult.locations.map((loc: any, i: number) => (
-                          <a key={i} href={loc.uri} target="_blank" className="block p-6 bg-white rounded-3xl border border-gray-100 active-haptic shadow-lg">
-                              <p className="text-[11px] font-black uppercase italic text-carb-navy">{loc.title}</p>
-                              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">Certified Clean Truck Tester</p>
-                          </a>
-                      ))}
-                      <a href="tel:6173596953" className="block w-full py-6 bg-blue-600 text-white text-center rounded-[2rem] font-black uppercase text-xs tracking-widest italic shadow-2xl active-haptic">Contact Regional Hub</a>
-                  </div>
-              )}
+            </div>
           </div>
+          <div className="bg-black p-12 flex justify-between items-center px-16">
+            <button onClick={stopScanner} className="text-white text-xs font-black uppercase tracking-widest opacity-50">Cancel</button>
+            <button onClick={captureFrame} className="w-24 h-24 bg-white rounded-full flex items-center justify-center border-8 border-gray-800 active:scale-90 transition-transform shadow-2xl shadow-white/10">
+              <div className="w-16 h-16 bg-white border-2 border-black rounded-full" />
+            </button>
+            <div className="w-12" /> {/* spacer */}
+          </div>
+        </div>
       )}
     </div>
   );

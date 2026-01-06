@@ -1,5 +1,6 @@
 
 export enum AppView {
+  LANDING = 'LANDING',
   HOME = 'HOME',
   ASSISTANT = 'ASSISTANT',
   ANALYZE = 'ANALYZE',
@@ -128,7 +129,6 @@ export interface User {
   history: HistoryItem[];
 }
 
-// Fix: Added missing Lead interface to resolve import errors in AdminView.tsx
 export interface Lead {
   company: string | null;
   phone: string | null;
@@ -136,7 +136,6 @@ export interface Lead {
   location: string | null;
 }
 
-// Fix: Added missing HotLead interface to resolve import errors in AdminView.tsx
 export interface HotLead {
   id: string;
   company: string;

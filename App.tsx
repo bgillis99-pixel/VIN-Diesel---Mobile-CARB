@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, Suspense } from 'react';
 import VinChecker from './components/VinChecker';
 import ComplianceGuide from './components/ComplianceGuide';
 import ClientIntake from './components/ClientIntake';
+import LandingView from './components/LandingView';
 import { AppView, User, HistoryItem } from './types';
 import { initGA, trackPageView, trackEvent } from './services/analytics';
 import { auth, getHistoryFromCloud, onAuthStateChanged } from './services/firebase'; 
@@ -25,7 +27,7 @@ const ANDROID_ICON = (
 );
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<AppView>(AppView.HOME); 
+  const [currentView, setCurrentView] = useState<AppView>(AppView.LANDING); 
   const [user, setUser] = useState<User | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -39,7 +41,11 @@ const App: React.FC = () => {
         if (firebaseUser) {
             const cloudHistory = await getHistoryFromCloud(firebaseUser.uid);
             setUser({ email: firebaseUser.email || 'Operator', history: cloudHistory as HistoryItem[] });
-        } else { setUser(null); }
+            // If logged in and at landing, move to home
+            if (currentView === AppView.LANDING) setCurrentView(AppView.HOME);
+        } else { 
+            setUser(null); 
+        }
     });
 
     const handleBeforeInstallPrompt = (e: any) => {
@@ -94,6 +100,10 @@ const App: React.FC = () => {
       trackEvent('app_share_fallback');
     }
   };
+
+  if (currentView === AppView.LANDING) {
+    return <LandingView onLaunch={() => setCurrentView(AppView.HOME)} />;
+  }
 
   const navItems = [
     { id: AppView.ANALYZE, label: 'HUB', icon: APPLE_ICON },
@@ -173,7 +183,6 @@ const App: React.FC = () => {
             className="fixed bottom-24 right-6 w-16 h-16 bg-carb-accent text-white rounded-full shadow-[0_10px_30px_rgba(59,130,246,0.6)] flex items-center justify-center z-[150] active-haptic animate-pulse-slow border-2 border-white/30"
           >
             <span className="text-3xl">🤖</span>
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full border border-carb-navy uppercase">Live</span>
           </button>
         )}
 
