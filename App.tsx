@@ -13,6 +13,7 @@ const MediaTools = React.lazy(() => import('./components/MediaTools'));
 const ProfileView = React.lazy(() => import('./components/ProfileView'));
 const GarageView = React.lazy(() => import('./components/GarageView'));
 const AdminView = React.lazy(() => import('./components/AdminView'));
+const InvoiceApp = React.lazy(() => import('./components/InvoiceApp'));
 
 const APPLE_ICON = (
   <svg className="w-5 h-5" viewBox="0 0 384 512" fill="currentColor">
@@ -35,6 +36,7 @@ const App: React.FC = () => {
     initGA();
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'intake') setCurrentView(AppView.INTAKE);
+    if (params.get('mode') === 'invoice') setCurrentView(AppView.INVOICE);
 
     onAuthStateChanged(auth, async (firebaseUser: any) => {
         if (firebaseUser) {
@@ -67,6 +69,7 @@ const App: React.FC = () => {
         onNavigateTools={() => setCurrentView(AppView.ANALYZE)} 
         onNavigateIntake={() => setCurrentView(AppView.INTAKE)}
         onNavigateChat={() => setCurrentView(AppView.ASSISTANT)}
+        onNavigateInvoice={() => setCurrentView(AppView.INVOICE)}
       />
     );
   }
@@ -87,7 +90,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {currentView !== AppView.INTAKE && (
+        {currentView !== AppView.INTAKE && currentView !== AppView.INVOICE && (
           <header className="pt-safe px-6 py-6 fixed top-0 left-0 right-0 glass-dark z-[100] flex flex-col gap-8">
               <div className="flex flex-col items-start">
                   <h1 className="text-2xl font-black tracking-tighter uppercase italic leading-none">CLEAR TRUCK CHECK</h1>
@@ -112,7 +115,7 @@ const App: React.FC = () => {
           </header>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${currentView === AppView.INTAKE ? 'pt-6' : 'pt-48'} pb-32`}>
+        <main className={`flex-1 overflow-y-auto ${currentView === AppView.INTAKE || currentView === AppView.INVOICE ? 'pt-6' : 'pt-48'} pb-32`}>
             <div className="px-6">
                 <Suspense fallback={<div className="flex justify-center py-20 animate-pulse text-gray-500 uppercase font-black text-[10px] tracking-widest">System Initializing...</div>}>
                     {currentView === AppView.HOME && (
@@ -127,6 +130,7 @@ const App: React.FC = () => {
                         </div>
                     )}
                     {currentView === AppView.INTAKE && <ClientIntake onComplete={() => setCurrentView(AppView.HOME)} />}
+                    {currentView === AppView.INVOICE && <InvoiceApp onComplete={() => setCurrentView(AppView.HOME)} />}
                     {currentView === AppView.ASSISTANT && <ChatAssistant />}
                     {currentView === AppView.GARAGE && <GarageView user={user} onNavigateLogin={() => setCurrentView(AppView.PROFILE)} />}
                     {currentView === AppView.ANALYZE && <MediaTools />}

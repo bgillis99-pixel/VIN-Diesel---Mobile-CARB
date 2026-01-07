@@ -8,7 +8,8 @@ export enum AppView {
   TOOLS = 'TOOLS',
   PROFILE = 'PROFILE',
   ADMIN = 'ADMIN',
-  INTAKE = 'INTAKE'
+  INTAKE = 'INTAKE',
+  INVOICE = 'INVOICE'
 }
 
 export interface AIAnalyticsReport {
@@ -26,6 +27,37 @@ export interface Message {
   timestamp: number;
   isThinking?: boolean;
   groundingUrls?: Array<{uri: string, title: string}>;
+}
+
+export interface Contact {
+  name: string;
+  company: string;
+  address: string;
+  cityState: string;
+  phone: string;
+  email: string;
+}
+
+export interface TestAppointment {
+  id: string;
+  testName: string;
+  testDate: string;
+  testId: string;
+  eVin: string;
+  userVin: string;
+  plate: string;
+  comment: string;
+  result: 'PASS' | 'FAIL';
+  resultMessage: string;
+  amount: number;
+}
+
+export interface Invoice {
+  id: string;
+  date: string;
+  billTo: Contact;
+  items: TestAppointment[];
+  balanceDue: number;
 }
 
 export interface ImageGenerationConfig {

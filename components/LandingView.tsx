@@ -6,6 +6,7 @@ interface Props {
   onNavigateTools: () => void;
   onNavigateIntake: () => void;
   onNavigateChat: () => void;
+  onNavigateInvoice: () => void;
 }
 
 const PHONE_ICON = (
@@ -33,7 +34,7 @@ const TESTER_ICON = (
   </svg>
 );
 
-const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateIntake, onNavigateChat }) => {
+const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateIntake, onNavigateChat, onNavigateInvoice }) => {
   const handleShare = async () => {
     if (navigator.share) {
       try {
@@ -127,6 +128,10 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
             <MainButton 
               label="AI CTC Q&A" 
               onClick={onNavigateChat} 
+            />
+            <MainButton 
+              label="Create Invoice" 
+              onClick={onNavigateInvoice} 
             />
         </div>
 
