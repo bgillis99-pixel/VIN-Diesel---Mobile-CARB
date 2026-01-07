@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense } from 'react';
 import VinChecker from './components/VinChecker';
 import ComplianceGuide from './components/ComplianceGuide';
@@ -81,43 +80,47 @@ const App: React.FC = () => {
     { id: AppView.GARAGE, label: 'FLEET', icon: ANDROID_ICON },
   ];
 
+  const GlobalHeader = () => (
+    <header className="pt-safe px-6 py-4 fixed top-0 left-0 right-0 glass-dark z-[100] flex flex-col items-center gap-6">
+      <button 
+        onClick={() => setCurrentView(AppView.LANDING)}
+        className="group relative inline-flex items-center gap-4 px-8 py-3 rounded-full metallic-silver transition-all hover:scale-105 active:scale-95 border-white/30"
+      >
+        <div className="brushed-texture opacity-30"></div>
+        <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse relative z-10"></span>
+        <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.4em] text-[#020617] italic relative z-10 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">
+          Verified Compliance Checker
+        </span>
+      </button>
+      
+      <div className="flex justify-between items-center w-full max-w-sm mx-auto">
+          {navItems.map(item => (
+            <button 
+              key={item.id} 
+              onClick={() => setCurrentView(item.id)} 
+              className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-2 px-1 rounded-2xl relative ${currentView === item.id ? 'text-blue-500' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              <div className="scale-90">{item.icon}</div>
+              <span className="text-[8px] font-black tracking-widest uppercase leading-none">{item.label}</span>
+            </button>
+          ))}
+      </div>
+    </header>
+  );
+
   return (
     <div className="dark min-h-screen bg-carb-navy text-white overflow-x-hidden selection:bg-carb-accent">
-        
         {!isOnline && (
           <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-[10px] font-black uppercase text-center py-1 z-[200] tracking-widest">
             Offline Mode
           </div>
         )}
 
-        {currentView !== AppView.INTAKE && currentView !== AppView.INVOICE && (
-          <header className="pt-safe px-6 py-6 fixed top-0 left-0 right-0 glass-dark z-[100] flex flex-col gap-8">
-              <div className="flex flex-col items-start">
-                  <h1 className="text-2xl font-black tracking-tighter uppercase italic leading-none">CLEAR TRUCK CHECK</h1>
-                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mt-1">REGS V12.26.25</p>
-              </div>
-              
-              <div className="flex justify-between items-center w-full max-w-sm mx-auto px-4">
-                  {navItems.map(item => (
-                    <button 
-                      key={item.id} 
-                      onClick={() => setCurrentView(item.id)} 
-                      className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-3 px-1 rounded-2xl relative ${currentView === item.id ? 'text-blue-500' : 'text-gray-500'}`}
-                    >
-                      {currentView === item.id && (
-                        <div className="absolute inset-0 bg-white/5 rounded-2xl border border-white/10 -z-10 shadow-[0_0_20px_rgba(59,130,246,0.1)]"></div>
-                      )}
-                      <div className="scale-90">{item.icon}</div>
-                      <span className="text-[9px] font-black tracking-widest uppercase leading-none">{item.label}</span>
-                    </button>
-                  ))}
-              </div>
-          </header>
-        )}
+        <GlobalHeader />
 
-        <main className={`flex-1 overflow-y-auto ${currentView === AppView.INTAKE || currentView === AppView.INVOICE ? 'pt-6' : 'pt-48'} pb-32`}>
+        <main className={`flex-1 overflow-y-auto ${currentView === AppView.INTAKE || currentView === AppView.INVOICE ? 'pt-32' : 'pt-44'} pb-32`}>
             <div className="px-6">
-                <Suspense fallback={<div className="flex justify-center py-20 animate-pulse text-gray-500 uppercase font-black text-[10px] tracking-widest">System Initializing...</div>}>
+                <Suspense fallback={<div className="flex justify-center py-20 animate-pulse text-gray-500 uppercase font-black text-[10px] tracking-widest">Initializing...</div>}>
                     {currentView === AppView.HOME && (
                         <div className="animate-in fade-in duration-700">
                           <VinChecker 
@@ -140,14 +143,13 @@ const App: React.FC = () => {
             </div>
         </main>
 
-        {currentView !== AppView.HOME && currentView !== AppView.INTAKE && (
-             <button 
-                onClick={() => setCurrentView(AppView.HOME)}
-                className="fixed bottom-safe left-1/2 -translate-x-1/2 mb-8 px-12 py-4 glass rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] active-haptic z-[100] italic"
-             >
-                HUB
-             </button>
-        )}
+        <button 
+          onClick={() => setCurrentView(AppView.LANDING)}
+          className="fixed bottom-safe left-1/2 -translate-x-1/2 mb-8 px-10 py-3 metallic-silver rounded-full text-[9px] font-black uppercase tracking-[0.3em] active-haptic z-[100] italic"
+        >
+          <div className="brushed-texture opacity-30"></div>
+          <span className="relative z-10">EXIT TO HOME</span>
+        </button>
     </div>
   );
 };

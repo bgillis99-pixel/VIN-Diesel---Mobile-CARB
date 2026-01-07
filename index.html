@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,28 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#020617">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mobile CARB">
   
-  <title>Clean Truck Check Compliant 12/26/25</title>
+  <title>Mobile CARB Testing CA</title>
 
-  <meta name="description" content="Official HD I/M Clean Truck Check compliance assistant. Updated for 12/26/25 protocols.">
+  <meta name="description" content="Mobile Testing App for California CARB Compliance. Instant VIN verification and tester access.">
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://clean-truck-check-compliant-25.web.app/">
-  <meta property="og:title" content="Clean Truck Check Compliant 12/26/25">
-  <meta property="og:description" content="Proactive tool for CA HD I/M compliance. Instant VIN scans and tester lookup.">
+  <meta property="og:url" content="https://carbcleantruckcheck.app/">
+  <meta property="og:title" content="Mobile CARB Testing CA">
+  <meta property="og:description" content="Official Mobile Testing App. Verify VINs and find credentialed testers across California.">
   <meta property="og:image" content="/logo.svg">
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:url" content="https://clean-truck-check-compliant-25.web.app/">
-  <meta property="twitter:title" content="Clean Truck Check Compliant 12/26/25">
-  <meta property="twitter:description" content="Proactive tool for CA HD I/M compliance. Instant VIN scans and tester lookup.">
+  <meta property="twitter:url" content="https://carbcleantruckcheck.app/">
+  <meta property="twitter:title" content="Mobile CARB Testing CA">
+  <meta property="twitter:description" content="Official Mobile Testing App for California CARB Compliance.">
   <meta property="twitter:image" content="/logo.svg">
 
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="apple-touch-icon" href="/logo.svg">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -40,23 +42,18 @@
               navy: '#020617',
               blue: '#0a192f',
               accent: '#3b82f6',
-              green: '#00C853',
+              green: '#39D353',
               grey: '#1e293b'
             }
           },
           animation: {
             'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'shimmer': 'shimmer 2s infinite',
-            'border-pulse': 'borderPulse 2s infinite'
+            'shimmer': 'shimmer 2s infinite'
           },
           keyframes: {
             shimmer: {
               '0%': { backgroundPosition: '-200% 0' },
               '100%': { backgroundPosition: '200% 0' },
-            },
-            borderPulse: {
-              '0%, 100%': { borderColor: 'rgba(59, 130, 246, 0.2)', boxShadow: '0 0 0 0 rgba(59, 130, 246, 0)' },
-              '50%': { borderColor: 'rgba(59, 130, 246, 0.8)', boxShadow: '0 0 20px 2px rgba(59, 130, 246, 0.4)' },
             }
           }
         }
@@ -83,18 +80,26 @@
     .pb-safe { padding-bottom: calc(1rem + var(--safe-bottom)); }
     .pt-safe { padding-top: calc(1rem + var(--safe-top)); }
     
-    .glass {
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
     .glass-dark {
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .metallic-silver {
+      background: linear-gradient(to bottom, #f3f4f6, #d1d5db, #9ca3af);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #020617;
+    }
+
+    .brushed-texture {
+      position: absolute;
+      inset: 0;
+      background-image: url('https://www.transparenttextures.com/patterns/brushed-alum.png');
+      opacity: 0.2;
+      pointer-events: none;
     }
 
     .vin-monospace {

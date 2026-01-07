@@ -1,31 +1,12 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bgGradient" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1a1a2e"/>
-      <stop offset="1" stop-color="#16213e"/>
-    </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
-      <feGaussianBlur stdDeviation="30" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
-  </defs>
-  <!-- Background with HIG-compliant corner radius -->
-  <rect width="1024" height="1024" rx="220" fill="url(#bgGradient)"/>
-  
-  <!-- Simplified Truck Silhouette -->
-  <g transform="translate(180, 280) scale(0.9)">
-    <path d="M0 450 L0 150 L500 150 L500 350 L750 350 L750 450 Z" fill="white" fill-opacity="0.1"/>
-    <path d="M50 400 L50 200 L450 200 L450 400 Z" fill="white"/>
-    <path d="M470 250 L680 250 L680 400 L470 400 Z" fill="white"/>
-    <!-- Wheels -->
-    <circle cx="150" cy="450" r="60" fill="white"/>
-    <circle cx="350" cy="450" r="60" fill="white"/>
-    <circle cx="600" cy="450" r="60" fill="white"/>
-  </g>
-
-  <!-- Cyan Checkmark Badge -->
-  <g filter="url(#glow)">
-    <circle cx="780" cy="780" r="160" fill="#3b82f6"/>
-    <path d="M690 780 L750 840 L870 720" stroke="white" stroke-width="55" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="1024" height="1024" fill="white"/>
+  <g transform="translate(100, 300)">
+    <!-- MOBILE (Navy) -->
+    <text x="0" y="120" font-family="Arial, sans-serif" font-weight="900" font-size="200" fill="#002D40" letter-spacing="10">MOBILE</text>
+    <!-- CARB (Green) -->
+    <text x="0" y="320" font-family="Arial, sans-serif" font-weight="900" font-size="240" fill="#39D353" letter-spacing="15">CARB</text>
+    <!-- TESTING CA (Navy) -->
+    <line x1="0" y1="400" x2="150" y2="400" stroke="#39D353" stroke-width="20"/>
+    <text x="170" y="420" font-family="Arial, sans-serif" font-weight="900" font-size="120" fill="#002D40" letter-spacing="20">TESTING CA</text>
   </g>
 </svg>
