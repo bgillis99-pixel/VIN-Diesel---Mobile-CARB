@@ -45,7 +45,7 @@ const FOOTER_PHONE_ICON = (
     </svg>
 );
 
-// New SVG Logo Component based on your provided svg
+// App Logo Component
 const AppLogo = () => (
   <div className="flex flex-col items-center justify-center transform scale-90 sm:scale-100">
     <h1 className="text-4xl sm:text-5xl font-black tracking-[0.2em] text-[#002D40] drop-shadow-lg" style={{ fontFamily: 'Arial, sans-serif' }}>
