@@ -15,6 +15,12 @@ const PHONE_ICON = (
   </svg>
 );
 
+const MINI_PHONE_ICON = (
+  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+  </svg>
+);
+
 const DOWNLOAD_ICON = (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3" />
@@ -136,9 +142,13 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
         </div>
 
         <div className="space-y-6 max-w-md mx-auto">
-            <p className="text-[9px] font-black text-gray-800 uppercase tracking-[0.5em] italic">
-                Regulatory Assistant v12.26
-            </p>
+            <div className="flex flex-col items-center gap-2">
+                <a href="tel:9168904427" className="flex items-center gap-2 text-gray-700 hover:text-gray-400 transition-colors active:scale-95 group">
+                   <span className="opacity-40">{MINI_PHONE_ICON}</span>
+                   <span className="text-[10px] font-black uppercase tracking-[0.4em] italic">CALL 916-890-4427</span>
+                </a>
+            </div>
+
             <div className="space-y-4 p-6 rounded-3xl bg-black/60 border border-white/5">
               <p className="text-[7px] font-bold text-gray-950 uppercase tracking-[0.2em] leading-relaxed opacity-60">
                 Clear Truck Check is an independent regulatory compliance assistant. We are not affiliated with, endorsed by, or part of the California Air Resources Board (CARB).
@@ -146,6 +156,15 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
               <p className="text-[7px] font-bold text-gray-950 uppercase tracking-[0.2em] leading-relaxed opacity-60">
                 By continuing to use these functions, you agree to the Terms of Service and Privacy Policy of NorCal CARB Mobile and carbcleantruckcheck.app.
               </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-1">
+                <p className="text-[8px] font-black text-gray-800 uppercase tracking-[0.3em] italic">
+                    Regulatory Assistant v12.26
+                </p>
+                <p className="text-[8px] font-black text-gray-900 uppercase tracking-[0.4em] opacity-40">
+                  © 2026 SILVERBACK GROUP LLC
+                </p>
             </div>
         </div>
       </div>

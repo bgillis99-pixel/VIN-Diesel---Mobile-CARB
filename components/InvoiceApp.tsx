@@ -202,4 +202,95 @@ const InvoiceApp: React.FC<Props> = ({ onComplete }) => {
                                             <p><span className="text-[#3d4d7a]/50">Plate:</span> {item.plate}</p>
                                         </div>
                                         <div className="p-4 bg-gray-50 rounded-xl border-l-4 border-[#3d4d7a]">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tester
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tester Comment:</p>
+                                            <p className="text-[10px] text-gray-700 font-medium italic">{item.comment}</p>
+                                            <p className="text-[10px] font-black text-blue-600 mt-2 uppercase">{item.resultMessage}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-8 text-right align-top font-black text-lg text-[#3d4d7a]">${item.amount.toFixed(2)}</td>
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+        </div>
+
+        {/* Footer Summary */}
+        <div className="flex justify-end pt-8 border-t-2 border-gray-100 mb-20">
+            <div className="w-64 space-y-4">
+                <div className="flex justify-between text-[11px] font-black text-gray-400 uppercase tracking-widest">
+                    <span>Subtotal</span>
+                    <span>${totalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-2xl font-black text-[#3d4d7a] italic uppercase tracking-tighter pt-4 border-t border-gray-100">
+                    <span>Total</span>
+                    <span>${totalAmount.toFixed(2)}</span>
+                </div>
+            </div>
+        </div>
+
+        <div className="text-center pt-20 border-t border-gray-100 space-y-2">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em] italic">Thank you for choosing NorCal CARB Mobile</p>
+            <p className="text-[8px] font-bold text-gray-300 uppercase tracking-widest">Powered by CTC Compliance Engine v12.26</p>
+        </div>
+      </div>
+
+      {/* Pay Now Button */}
+      <div className="mt-10 flex justify-center no-print">
+        <button 
+          onClick={() => setShowPaymentModal(true)}
+          className="px-20 py-6 bg-[#3d4d7a] text-white font-black rounded-full uppercase tracking-[0.4em] italic text-sm shadow-[0_20px_50px_rgba(61,77,122,0.4)] active-haptic"
+        >
+          Pay Now
+        </button>
+      </div>
+
+      {/* Payment Selection Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-[2000] bg-[#020617]/95 backdrop-blur-3xl flex items-center justify-center p-6 no-print">
+          <div className="bg-white rounded-[4rem] w-full max-w-lg overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.5)] animate-in zoom-in duration-300">
+            <div className="bg-[#3d4d7a] p-10 text-center relative">
+              <button onClick={() => setShowPaymentModal(false)} className="absolute top-6 right-8 text-white/40 hover:text-white font-black uppercase text-[10px] tracking-widest">Close</button>
+              <h2 className="text-3xl font-black italic uppercase text-white tracking-tighter">Secure Payment</h2>
+              <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.4em] mt-2 italic">Total Due: ${totalAmount.toFixed(2)}</p>
+            </div>
+            
+            <div className="p-10 space-y-6">
+                <button className="w-full flex items-center justify-between p-6 bg-slate-50 border border-slate-200 rounded-3xl group active-haptic transition-all hover:bg-white hover:shadow-xl">
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">Credit / Debit Card</span>
+                    <div className="flex gap-2">
+                        <span className="w-8 h-5 bg-blue-800 rounded-sm"></span>
+                        <span className="w-8 h-5 bg-orange-500 rounded-sm"></span>
+                    </div>
+                </button>
+
+                <button className="w-full flex items-center justify-between p-6 bg-[#0070ba]/5 border border-[#0070ba]/20 rounded-3xl group active-haptic transition-all hover:bg-white hover:shadow-xl">
+                    <span className="text-xs font-black uppercase tracking-widest text-[#0070ba]">PayPal Checkout</span>
+                    <span className="text-xl italic font-black text-[#0070ba]">PayPal</span>
+                </button>
+
+                <button className="w-full flex items-center justify-between p-6 bg-[#3d95ce]/5 border border-[#3d95ce]/20 rounded-3xl group active-haptic transition-all hover:bg-white hover:shadow-xl">
+                    <span className="text-xs font-black uppercase tracking-widest text-[#3d95ce]">Venmo Account</span>
+                    <span className="text-xl font-black text-[#3d95ce]">Venmo</span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <button className="flex flex-col items-center gap-2 p-6 bg-black rounded-3xl active-haptic shadow-xl">
+                        <span className="text-white text-lg font-black italic">Apple Pay</span>
+                    </button>
+                    <button className="flex flex-col items-center gap-2 p-6 bg-slate-100 border border-slate-200 rounded-3xl active-haptic shadow-xl">
+                        <span className="text-slate-900 text-lg font-black italic">Google Pay</span>
+                    </button>
+                </div>
+
+                <p className="text-center text-[8px] font-bold text-gray-400 uppercase tracking-widest pt-4">Payments secured via Stripe Connect & PayPal Merchant Services</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default InvoiceApp;
