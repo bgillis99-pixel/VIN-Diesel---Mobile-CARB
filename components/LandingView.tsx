@@ -110,7 +110,7 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
           </div>
 
           <div className="flex justify-between items-end gap-3 w-full max-w-lg mx-auto">
-              <TopButton href="tel:9168904427" icon={PHONE_ICON} label="916-890-4427" />
+              <TopButton href="tel:9168904427" icon={PHONE_ICON} label="CALL NOW" />
               <TopButton onClick={onLaunch} icon={DOWNLOAD_ICON} label="Download App" />
               <TopButton onClick={handleShare} icon={SHARE_ICON} label="Share App" />
               <TopButton onClick={onNavigateTools} icon={TESTER_ICON} label="Find Tester" />
@@ -144,7 +144,7 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
             <div className="flex flex-col items-center gap-2">
                 <a href="tel:9168904427" className="flex items-center gap-3 text-gray-700 hover:text-gray-400 transition-all active:scale-95 group">
                    <span className="opacity-50">{FOOTER_PHONE_ICON}</span>
-                   <span className="text-[12px] font-black uppercase tracking-[0.5em] italic">CALL 916-890-4427</span>
+                   <span className="text-[12px] font-black uppercase tracking-[0.5em] italic">CALL AN EXPERT</span>
                 </a>
             </div>
 
