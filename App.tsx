@@ -82,6 +82,9 @@ const App: React.FC = () => {
     { id: AppView.GARAGE, label: 'FLEET', icon: ANDROID_ICON },
   ];
 
+  const MetallicStyle = "bg-gradient-to-b from-[#f3f4f6] via-[#d1d5db] to-[#9ca3af] shadow-[0_5px_15px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.8)] border border-white/20 relative overflow-hidden transition-all";
+  const BrushedTexture = <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')] opacity-20 pointer-events-none"></div>;
+
   const GlobalHeader = () => (
     <header className="pt-safe px-6 py-4 fixed top-0 left-0 right-0 glass-dark z-[100] flex flex-col items-center gap-6">
       <button 
@@ -95,15 +98,16 @@ const App: React.FC = () => {
         </span>
       </button>
       
-      <div className="flex justify-between items-center w-full max-w-sm mx-auto">
+      <div className="flex justify-between items-center w-full max-w-sm mx-auto gap-3">
           {navItems.map(item => (
             <button 
               key={item.id} 
               onClick={() => setCurrentView(item.id)} 
-              className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-2 px-1 rounded-2xl relative ${currentView === item.id ? 'text-blue-500' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-3 px-1 rounded-2xl relative active-haptic ${currentView === item.id ? 'text-blue-600 border-blue-500/50' : 'text-gray-700'} ${MetallicStyle}`}
             >
-              <div className="scale-90">{item.icon}</div>
-              <span className="text-[8px] font-black tracking-widest uppercase leading-none">{item.label}</span>
+              {BrushedTexture}
+              <div className="scale-90 relative z-10">{item.icon}</div>
+              <span className="text-[7px] font-black tracking-widest uppercase leading-none relative z-10">{item.label}</span>
             </button>
           ))}
       </div>
