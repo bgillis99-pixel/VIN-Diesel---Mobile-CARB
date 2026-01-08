@@ -14,8 +14,8 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   
-  // View Toggle: 'COMMAND' or 'CRM'
-  const [adminViewMode, setAdminViewMode] = useState<'COMMAND' | 'CRM'>('COMMAND');
+  // View Toggle: 'COMMAND' or 'CRM' or 'CALENDAR'
+  const [adminViewMode, setAdminViewMode] = useState<'COMMAND' | 'CRM' | 'CALENDAR'>('COMMAND');
 
   // Silverback API / Google Integration State
   const [loadingGoogle, setLoadingGoogle] = useState(true);
@@ -44,9 +44,10 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
 
         setTimeout(() => {
             setCalendarEvents([
-                { id: 1, time: '09:00 AM', title: 'Fleet Inspection - Sac Logistics', status: 'confirmed', location: 'Sacramento, CA' },
-                { id: 2, time: '01:30 PM', title: 'Smoke Test - Unit 58 (Big Red)', status: 'pending', location: 'Mobile' },
-                { id: 3, time: '04:00 PM', title: 'Zoom: CARB Compliance Review', status: 'confirmed', location: 'Remote' }
+                { id: 1, time: '09:00 AM', title: 'Sac Logistics - 5 Units', status: 'confirmed', location: 'Sacramento, CA', type: 'OBD' },
+                { id: 2, time: '11:30 AM', title: 'Clean Roofing OBD - Unit 1', status: 'confirmed', location: 'Mobile', type: 'OBD' },
+                { id: 3, time: '01:30 PM', title: 'West Coast Heavy - PSIP', status: 'pending', location: 'Roseville, CA', type: 'SMOKE' },
+                { id: 4, time: '04:00 PM', title: 'Zoom: CARB Compliance Audit', status: 'confirmed', location: 'Remote', type: 'CONSULT' }
             ]);
             setGmailInquiries([
                 { id: 1, from: 'Mike @ ABC Trucking', subject: 'Urgent: PSIP Renewal Quote', time: '10m ago', unread: true },
@@ -87,8 +88,8 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
   };
 
   const filteredClients = useMemo(() => {
-    if (!crmSearch) return crmClients;
-    const query = crmSearch.toLowerCase();
+    if (!crmSearch.trim()) return crmClients;
+    const query = crmSearch.toLowerCase().trim();
     return crmClients.filter(client => 
       client.clientName.toLowerCase().includes(query) ||
       client.vin.toLowerCase().includes(query) ||
@@ -99,7 +100,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
   if (!isAuthorized) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
-        <div className="w-full max-w-sm glass p-10 rounded-[3rem] border border-white/10 shadow-2xl space-y-8 text-center bg-black/40 backdrop-blur-xl">
+        <div className="w-full max-sm glass p-10 rounded-[3rem] border border-white/10 shadow-2xl space-y-8 text-center bg-black/40 backdrop-blur-xl">
             <div className="w-24 h-24 bg-blue-600/10 rounded-full mx-auto flex items-center justify-center text-3xl border border-blue-500/20 shadow-[0_0_30px_rgba(37,99,235,0.2)]">
               🔒
             </div>
@@ -138,7 +139,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
               <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${apiStatus === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
                   <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                    {apiStatus === 'connected' ? 'Silverback API: Online' : 'Connecting...'}
+                    {apiStatus === 'connected' ? 'Norcal Cloud: Real-time' : 'Connecting...'}
                   </p>
               </div>
           </div>
@@ -176,27 +177,33 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
       )}
 
       {/* VIEW TOGGLE */}
-      <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10">
+      <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 mx-4">
           <button 
               onClick={() => setAdminViewMode('COMMAND')}
-              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${adminViewMode === 'COMMAND' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500'}`}
+              className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${adminViewMode === 'COMMAND' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500'}`}
           >
-              Command Center
+              Command
+          </button>
+          <button 
+              onClick={() => { setAdminViewMode('CALENDAR'); }}
+              className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${adminViewMode === 'CALENDAR' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500'}`}
+          >
+              Schedule
           </button>
           <button 
               onClick={() => { setAdminViewMode('CRM'); loadCrmData(); }}
-              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${adminViewMode === 'CRM' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500'}`}
+              className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${adminViewMode === 'CRM' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500'}`}
           >
-              OVI / Clients
+              Clients
           </button>
       </div>
 
-      {adminViewMode === 'COMMAND' ? (
+      {adminViewMode === 'COMMAND' && (
       <>
           {/* GOOGLE WORKSPACE INTEGRATION CARD */}
-          <div className="bg-[#4285F4]/10 border border-[#4285F4]/20 rounded-[2.5rem] p-1 overflow-hidden relative">
+          <div className="bg-[#4285F4]/10 border border-[#4285F4]/20 rounded-[2.5rem] p-1 overflow-hidden relative mx-4">
               <div className="absolute top-0 right-0 p-4">
-                 <button onClick={() => setRefreshKey(k => k + 1)} className="text-[10px] text-blue-400 font-black uppercase tracking-widest hover:text-white">↻ Refresh Stream</button>
+                 <button onClick={() => setRefreshKey(k => k + 1)} className="text-[10px] text-blue-400 font-black uppercase tracking-widest hover:text-white">↻ Sync Now</button>
               </div>
               
               <div className="p-8 space-y-6">
@@ -205,168 +212,153 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                         <svg className="w-6 h-6" viewBox="0 0 24 24"><path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" /></svg>
                     </div>
                     <div>
-                        <h3 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Workspace Sync</h3>
-                        <p className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Account: bgillis99</p>
+                        <h3 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Workspace Stream</h3>
+                        <p className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">bgillis99@gmail.com</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
-                    {/* Calendar Feed */}
+                    {/* Calendar Quick Look */}
                     <div className="bg-black/40 rounded-3xl p-6 space-y-4 border border-white/5">
                         <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Calendar • {new Date().toLocaleDateString()}</span>
-                            {loadingGoogle && <span className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></span>}
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Today's Tests</span>
+                            <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest">View Full Schedule</span>
                         </div>
-                        {loadingGoogle ? (
-                            <div className="space-y-3 animate-pulse">
-                                <div className="h-10 bg-white/5 rounded-xl"></div>
-                                <div className="h-10 bg-white/5 rounded-xl"></div>
-                            </div>
-                        ) : (
-                            calendarEvents.map(ev => (
-                                <div key={ev.id} className="flex gap-4 items-start group">
-                                    <span className="text-[10px] font-mono text-blue-400 pt-1 w-14 shrink-0">{ev.time}</span>
-                                    <div className="space-y-0.5">
-                                        <span className="text-[11px] font-bold text-white block leading-tight">{ev.title}</span>
-                                        <span className="text-[9px] text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                            📍 {ev.location}
-                                        </span>
+                        {calendarEvents.slice(0, 3).map(ev => (
+                            <div key={ev.id} className="flex gap-4 items-start group">
+                                <span className="text-[10px] font-mono text-blue-400 pt-1 w-14 shrink-0">{ev.time}</span>
+                                <div className="space-y-0.5">
+                                    <span className="text-[11px] font-bold text-white block leading-tight italic uppercase tracking-tighter">{ev.title}</span>
+                                    <div className="flex gap-2">
+                                        <span className="text-[8px] text-gray-600 uppercase tracking-wider">📍 {ev.location}</span>
+                                        <span className="text-[8px] text-blue-600 uppercase font-black">{ev.type}</span>
                                     </div>
                                 </div>
-                            ))
-                        )}
+                            </div>
+                        ))}
                     </div>
 
                     {/* Gmail Feed */}
                     <div className="bg-black/40 rounded-3xl p-6 space-y-4 border border-white/5">
                         <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Priority Inbox</span>
-                            <span className="text-[9px] text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{gmailInquiries.filter(m => m.unread).length} Unread</span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Gmail Inquiries</span>
+                            <span className="text-[9px] text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{gmailInquiries.filter(m => m.unread).length} New</span>
                         </div>
-                        {loadingGoogle ? (
-                             <div className="space-y-3 animate-pulse">
-                                <div className="h-12 bg-white/5 rounded-xl"></div>
-                                <div className="h-12 bg-white/5 rounded-xl"></div>
-                             </div>
-                        ) : (
-                            gmailInquiries.map(mail => (
-                                <div key={mail.id} className={`flex justify-between items-center p-3 rounded-2xl transition-colors ${mail.unread ? 'bg-white/10 border border-white/10' : 'bg-transparent border border-transparent hover:bg-white/5'}`}>
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className={`w-2 h-2 rounded-full shrink-0 ${mail.unread ? 'bg-blue-500' : 'bg-gray-700'}`}></div>
-                                        <div className="flex flex-col overflow-hidden">
-                                            <span className={`text-[10px] font-black truncate ${mail.unread ? 'text-white' : 'text-gray-500'}`}>{mail.from}</span>
-                                            <span className="text-[9px] text-gray-500 truncate">{mail.subject}</span>
-                                        </div>
+                        {gmailInquiries.map(mail => (
+                            <div key={mail.id} className={`flex justify-between items-center p-3 rounded-2xl transition-colors ${mail.unread ? 'bg-white/10 border border-white/10' : 'bg-transparent border border-transparent hover:bg-white/5'}`}>
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mail.unread ? 'bg-blue-500' : 'bg-gray-700'}`}></div>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className={`text-[9px] font-black truncate uppercase tracking-widest ${mail.unread ? 'text-white' : 'text-gray-500'}`}>{mail.from}</span>
+                                        <span className="text-[8px] text-gray-500 truncate">{mail.subject}</span>
                                     </div>
-                                    <span className="text-[8px] font-mono text-gray-600 shrink-0 ml-2">{mail.time}</span>
                                 </div>
-                            ))
-                        )}
+                                <span className="text-[8px] font-mono text-gray-600 shrink-0 ml-2">{mail.time}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
               </div>
           </div>
           
-          <div className="bg-white/5 border border-white/10 rounded-[3rem] p-8 space-y-6">
-              <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] italic">Operator Tools</h3>
+          <div className="bg-white/5 border border-white/10 rounded-[3rem] p-8 space-y-6 mx-4">
+              <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] italic text-center">Protocol Interface</h3>
               <div className="grid grid-cols-2 gap-4">
-                  <button className="p-6 bg-white/5 rounded-3xl border border-white/10 text-center space-y-2 active-haptic hover:bg-white/10 transition-colors group">
-                      <span className="text-2xl block group-hover:scale-110 transition-transform">📧</span>
-                      <span className="text-[8px] font-black uppercase text-white tracking-widest">EMAIL</span>
-                  </button>
-                  <button className="p-6 bg-white/5 rounded-3xl border border-white/10 text-center space-y-2 active-haptic hover:bg-white/10 transition-colors group">
-                      <span className="text-2xl block group-hover:scale-110 transition-transform">📸</span>
-                      <span className="text-[8px] font-black uppercase text-white tracking-widest">PHOTOS</span>
-                  </button>
-                  <button 
-                      onClick={onNavigateInvoice}
-                      className="p-6 bg-[#3d4d7a]/20 rounded-3xl border border-[#3d4d7a]/50 text-center space-y-2 active-haptic shadow-lg hover:bg-[#3d4d7a]/30 transition-colors group"
-                  >
+                  <button onClick={onNavigateInvoice} className="p-6 bg-blue-600/10 rounded-3xl border border-blue-500/20 text-center space-y-2 active-haptic hover:bg-blue-600/20 transition-all group">
                       <span className="text-2xl block group-hover:scale-110 transition-transform">📄</span>
-                      <span className="text-[8px] font-black uppercase text-white tracking-widest">INVOICES</span>
+                      <span className="text-[8px] font-black uppercase text-white tracking-widest">Invoices</span>
                   </button>
-                  <button className="p-6 bg-green-600/10 rounded-3xl border border-green-500/20 text-center space-y-2 active-haptic hover:bg-green-600/20 transition-colors group">
+                  <button className="p-6 bg-green-600/10 rounded-3xl border border-green-500/20 text-center space-y-2 active-haptic hover:bg-green-600/20 transition-all group">
                       <span className="text-2xl block group-hover:scale-110 transition-transform">💳</span>
-                      <span className="text-[8px] font-black uppercase text-green-500 tracking-widest">PAYMENTS</span>
+                      <span className="text-[8px] font-black uppercase text-green-500 tracking-widest">Stripe Ops</span>
                   </button>
               </div>
           </div>
       </>
-      ) : (
-      // CRM VIEW
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+      )}
+
+      {adminViewMode === 'CALENDAR' && (
+          <div className="px-4 space-y-6 animate-in fade-in slide-in-from-bottom-4">
+              <div className="glass p-8 rounded-[3rem] border border-blue-500/20 space-y-8 bg-black/40">
+                  <div className="flex justify-between items-center">
+                      <h3 className="text-xl font-black italic uppercase text-white tracking-tighter">Real-time Dispatch</h3>
+                      <button onClick={() => setRefreshKey(k => k + 1)} className="text-blue-400 font-black text-[10px] uppercase">Sync Cal</button>
+                  </div>
+                  
+                  <div className="space-y-6">
+                      {calendarEvents.map((ev, i) => (
+                          <div key={ev.id} className="relative pl-6 border-l-2 border-white/10">
+                              <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(37,99,235,0.8)]"></div>
+                              <div className="flex justify-between items-start">
+                                  <div className="space-y-1">
+                                      <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">{ev.time}</p>
+                                      <p className="text-lg font-black text-white uppercase italic tracking-tighter leading-tight">{ev.title}</p>
+                                      <p className="text-[10px] font-bold text-gray-500 uppercase">{ev.location}</p>
+                                  </div>
+                                  <div className="text-right space-y-2">
+                                      <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${ev.status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                          {ev.status}
+                                      </span>
+                                      <button onClick={onNavigateInvoice} className="block w-full text-[8px] font-black text-blue-600 underline uppercase tracking-widest pt-2">Generate Invoice</button>
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5 text-center">
+                      <p className="text-[8px] font-black text-gray-700 uppercase tracking-[0.5em]">Calendar Link: B. Gillis Norcal Master</p>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {adminViewMode === 'CRM' && (
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 px-4">
           <div className="bg-[#15803d]/10 border border-[#15803d]/20 rounded-[2.5rem] p-8 relative overflow-hidden">
                <div className="flex justify-between items-center mb-6">
                   <div>
-                      <h3 className="text-xl font-black italic uppercase text-white tracking-tighter">OVI / App Clients</h3>
-                      <p className="text-[9px] font-bold text-green-500 uppercase tracking-widest">CRM Database</p>
+                      <h3 className="text-xl font-black italic uppercase text-white tracking-tighter">OVI Client List</h3>
+                      <p className="text-[9px] font-bold text-green-500 uppercase tracking-widest">Real-time CRM</p>
                   </div>
                   <button onClick={loadCrmData} className="text-2xl active:rotate-180 transition-transform">↻</button>
                </div>
 
-               {/* CRM Search Bar */}
-               <div className="mb-6 relative">
+               <div className="mb-8 relative z-10 group">
                   <input 
                     type="text"
                     value={crmSearch}
                     onChange={(e) => setCrmSearch(e.target.value)}
-                    placeholder="Search Name, VIN, or Phone..."
-                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-10 pr-4 text-[10px] font-black text-white placeholder:text-gray-700 outline-none focus:border-green-500 transition-all uppercase tracking-widest italic"
+                    placeholder="Search by Name, VIN, or Phone..."
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-[10px] font-black text-white placeholder:text-gray-700 outline-none focus:border-green-500/50 transition-all uppercase tracking-widest italic"
                   />
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none">🔍</span>
-                  {crmSearch && (
-                    <button 
-                      onClick={() => setCrmSearch('')}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-white transition-colors"
-                    >
-                      ✕
-                    </button>
-                  )}
                </div>
                
                {loadingCrm ? (
-                   <div className="py-10 text-center space-y-4">
-                       <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                       <p className="text-[10px] uppercase tracking-widest text-gray-500">Syncing Clients...</p>
-                   </div>
-               ) : filteredClients.length === 0 ? (
-                   <div className="py-10 text-center border-2 border-dashed border-white/10 rounded-2xl">
-                       <p className="text-[10px] uppercase tracking-widest text-gray-500">
-                          {crmSearch ? 'No matching clients found.' : 'No clients captured via Intake App yet.'}
-                       </p>
-                   </div>
+                   <div className="py-10 text-center animate-pulse text-[10px] font-black text-gray-600 uppercase tracking-widest italic">Syncing CRM...</div>
                ) : (
                    <div className="space-y-4">
                        {filteredClients.map(client => (
-                           <div key={client.id} className="bg-black/20 p-5 rounded-3xl border border-white/5 space-y-3">
+                           <div key={client.id} className="bg-black/20 p-5 rounded-3xl border border-white/5 space-y-4 hover:border-green-500/20 transition-all">
                                <div className="flex justify-between items-start">
                                    <div className="space-y-1">
-                                       <h4 className="font-black text-white text-lg uppercase italic">{client.clientName}</h4>
-                                       <div className="flex gap-2 text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+                                       <h4 className="font-black text-white text-lg uppercase italic leading-none">{client.clientName}</h4>
+                                       <div className="flex gap-2 text-[8px] text-gray-500 font-bold uppercase tracking-widest">
                                           <span>{new Date(client.timestamp).toLocaleDateString()}</span>
-                                          <span>•</span>
                                           <span className="text-blue-400">{client.status}</span>
                                        </div>
                                    </div>
-                                   <a href={`tel:${client.phone}`} className="bg-white/10 p-2 rounded-xl text-xl">📞</a>
+                                   <button onClick={onNavigateInvoice} className="text-blue-500 text-xl active-haptic">📄</button>
                                </div>
                                
-                               <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-white/5 pt-3">
-                                   <div>
-                                       <p className="font-black text-gray-600 uppercase">Contact</p>
-                                       <p className="text-gray-300 truncate">{client.email || 'N/A'}</p>
-                                       <p className="text-gray-300">{client.phone || 'N/A'}</p>
+                               <div className="grid grid-cols-2 gap-4 text-[9px] font-bold border-t border-white/5 pt-3">
+                                   <div className="space-y-1">
+                                       <p className="text-gray-600 uppercase">Contact</p>
+                                       <p className="text-gray-300 truncate">{client.phone || 'N/A'}</p>
                                    </div>
-                                   <div>
-                                       <p className="font-black text-gray-600 uppercase">Vehicle (SAFER/NHTSA)</p>
-                                       {client.vin ? (
-                                           <>
-                                             <p className="text-green-400 font-mono tracking-wider truncate">{client.vin}</p>
-                                             <p className="text-gray-300 truncate">{client.year} {client.make} {client.model}</p>
-                                           </>
-                                       ) : (
-                                           <p className="text-gray-500 italic">No VIN Captured</p>
-                                       )}
+                                   <div className="space-y-1">
+                                       <p className="text-gray-600 uppercase">Vehicle</p>
+                                       <p className="text-green-500 font-mono tracking-wider truncate">{client.vin || 'NO VIN'}</p>
                                    </div>
                                </div>
                            </div>
@@ -377,15 +369,15 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
       </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-1">
+      <div className="grid grid-cols-2 gap-4 px-4">
+          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-1 text-center">
               <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Total Clients</p>
-              <p className="text-5xl font-black italic text-white tracking-tighter">{crmClients.length}</p>
+              <p className="text-4xl font-black italic text-white tracking-tighter">{crmClients.length}</p>
           </div>
-          <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-8 rounded-[2.5rem] space-y-1 shadow-2xl border border-blue-400/20">
-              <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">Active Jobs</p>
-              <p className="text-5xl font-black italic text-white tracking-tighter">
-                  {crmClients.filter(c => c.status === 'New').length}
+          <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-8 rounded-[2.5rem] space-y-1 shadow-2xl border border-blue-400/20 text-center">
+              <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">Upcoming Jobs</p>
+              <p className="text-4xl font-black italic text-white tracking-tighter">
+                  {calendarEvents.filter(e => e.status === 'confirmed').length}
               </p>
           </div>
       </div>
