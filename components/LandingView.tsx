@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { triggerHaptic } from '../services/haptics';
 
 interface Props {
   onLaunch: () => void;
@@ -36,6 +37,12 @@ const ADMIN_ICON = (
 const HELP_ICON = (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+  </svg>
+);
+
+const MSG_ICON = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
   </svg>
 );
 
@@ -111,6 +118,11 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
     window.location.href = `mailto:support@norcalcarb.com?subject=App Issue Report&body=${encodeURIComponent(body)}`;
   };
 
+  const handleTextBryan = () => {
+    triggerHaptic('light');
+    window.location.href = "sms:19168904427&body=Hi Bryan, I have a question about the CARB app.";
+  };
+
   const MetallicStyle = "bg-gradient-to-b from-[#f3f4f6] via-[#d1d5db] to-[#9ca3af] shadow-[0_10px_25px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.8)] border border-white/20 relative overflow-hidden transition-all";
   const BrushedTexture = <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')] opacity-20 pointer-events-none"></div>;
 
@@ -159,6 +171,7 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
 
           <div className="flex justify-center items-end gap-2 w-full max-w-lg mx-auto overflow-x-auto pb-2 px-2">
               <TopButton href="tel:9168904427" icon={PHONE_ICON} label="CALL" colorClass="text-green-800" />
+              <TopButton onClick={handleTextBryan} icon={MSG_ICON} label="BRYAN" colorClass="text-blue-900" />
               <TopButton onClick={handleInstall} icon={DOWNLOAD_ICON} label="INSTALL" colorClass="text-blue-800" />
               <TopButton onClick={handleShare} icon={SHARE_ICON} label="SHARE" colorClass="text-purple-800" />
               <TopButton onClick={handleSupport} icon={HELP_ICON} label="HELP" colorClass="text-orange-800" />
@@ -203,7 +216,7 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
                 <p className="text-[8px] font-black text-gray-500 uppercase tracking-[0.3em] italic">
                     Regulatory Assistant v12.26
                 </p>
-                <p className="text-[8px] font-black text-gray-600 uppercase tracking-[0.4em]">
+                <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest">
                   © 2026 SILVERBACK GROUP LLC
                 </p>
             </div>
