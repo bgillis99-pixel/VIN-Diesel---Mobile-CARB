@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getClientsFromCRM } from '../services/firebase';
 import { CrmClient } from '../types';
 
@@ -27,6 +27,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
   // CRM State
   const [crmClients, setCrmClients] = useState<CrmClient[]>([]);
   const [loadingCrm, setLoadingCrm] = useState(false);
+  const [crmSearch, setCrmSearch] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem('carb_admin_code');
@@ -84,6 +85,16 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
     setShowSettings(false);
     alert("Admin Credentials Updated");
   };
+
+  const filteredClients = useMemo(() => {
+    if (!crmSearch) return crmClients;
+    const query = crmSearch.toLowerCase();
+    return crmClients.filter(client => 
+      client.clientName.toLowerCase().includes(query) ||
+      client.vin.toLowerCase().includes(query) ||
+      (client.phone && client.phone.toLowerCase().includes(query))
+    );
+  }, [crmClients, crmSearch]);
 
   if (!isAuthorized) {
     return (
@@ -292,19 +303,41 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                   </div>
                   <button onClick={loadCrmData} className="text-2xl active:rotate-180 transition-transform">↻</button>
                </div>
+
+               {/* CRM Search Bar */}
+               <div className="mb-6 relative">
+                  <input 
+                    type="text"
+                    value={crmSearch}
+                    onChange={(e) => setCrmSearch(e.target.value)}
+                    placeholder="Search Name, VIN, or Phone..."
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-10 pr-4 text-[10px] font-black text-white placeholder:text-gray-700 outline-none focus:border-green-500 transition-all uppercase tracking-widest italic"
+                  />
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none">🔍</span>
+                  {crmSearch && (
+                    <button 
+                      onClick={() => setCrmSearch('')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-white transition-colors"
+                    >
+                      ✕
+                    </button>
+                  )}
+               </div>
                
                {loadingCrm ? (
                    <div className="py-10 text-center space-y-4">
                        <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
                        <p className="text-[10px] uppercase tracking-widest text-gray-500">Syncing Clients...</p>
                    </div>
-               ) : crmClients.length === 0 ? (
+               ) : filteredClients.length === 0 ? (
                    <div className="py-10 text-center border-2 border-dashed border-white/10 rounded-2xl">
-                       <p className="text-[10px] uppercase tracking-widest text-gray-500">No clients captured via Intake App yet.</p>
+                       <p className="text-[10px] uppercase tracking-widest text-gray-500">
+                          {crmSearch ? 'No matching clients found.' : 'No clients captured via Intake App yet.'}
+                       </p>
                    </div>
                ) : (
                    <div className="space-y-4">
-                       {crmClients.map(client => (
+                       {filteredClients.map(client => (
                            <div key={client.id} className="bg-black/20 p-5 rounded-3xl border border-white/5 space-y-3">
                                <div className="flex justify-between items-start">
                                    <div className="space-y-1">
