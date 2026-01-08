@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { getClientsFromCRM } from '../services/firebase';
+import { getClientsFromCRM, triggerMakeAutomation } from '../services/firebase';
 import { CrmClient } from '../types';
+import { triggerHaptic } from '../services/haptics';
 
 interface Props {
   onNavigateInvoice: () => void;
@@ -21,6 +22,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [gmailInquiries, setGmailInquiries] = useState<any[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [automationSyncing, setAutomationSyncing] = useState(false);
 
   const [kpis, setKpis] = useState({
     revenue: '$14,250',
@@ -82,11 +84,24 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
   };
 
   const handleLogin = () => {
+    triggerHaptic('medium');
     if (passInput === adminCode) {
       setIsAuthorized(true);
+      triggerHaptic('success');
     } else {
+      triggerHaptic('error');
       alert("Invalid Access Code");
     }
+  };
+
+  const handleTriggerAutomation = async () => {
+    setAutomationSyncing(true);
+    triggerHaptic('light');
+    await triggerMakeAutomation('MANUAL_SYNC', { timestamp: Date.now(), operator: 'Bryan' });
+    setTimeout(() => {
+        setAutomationSyncing(false);
+        triggerHaptic('success');
+    }, 2000);
   };
 
   const handlePasswordChange = () => {
@@ -95,6 +110,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
     setAdminCode(newPassword.trim());
     setNewPassword('');
     setShowSettings(false);
+    triggerHaptic('success');
     alert("Admin Credentials Updated");
   };
 
@@ -153,7 +169,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
               </div>
           </div>
           <button 
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={() => { triggerHaptic('light'); setShowSettings(!showSettings); }}
             className={`p-3 rounded-2xl border text-xl active-haptic transition-all ${showSettings ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10'}`}
           >
             ⚙️
@@ -164,7 +180,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
           {['COMMAND', 'CALENDAR', 'CRM'].map(mode => (
             <button 
               key={mode}
-              onClick={() => setAdminViewMode(mode as any)}
+              onClick={() => { triggerHaptic('light'); setAdminViewMode(mode as any); }}
               className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${adminViewMode === mode ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500'}`}
             >
               {mode}
@@ -203,6 +219,40 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                           <p className="text-3xl font-black italic text-green-500 tracking-tighter">{kpis.fleetCompliance}</p>
                       </div>
                   </div>
+              </div>
+          </div>
+
+          {/* MAKE.AI AUTOMATION CONTROL PANEL */}
+          <div className="px-4">
+              <div className="bg-gradient-to-r from-blue-900/40 to-black/40 border border-blue-500/30 rounded-[3rem] p-8 space-y-6 shadow-2xl backdrop-blur-3xl">
+                  <div className="flex justify-between items-center">
+                      <div className="space-y-1">
+                          <h3 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Make.ai Automation</h3>
+                          <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">NorCal Master Sync Active</p>
+                      </div>
+                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
+                          <span className="text-xl">⚡</span>
+                      </div>
+                  </div>
+
+                  <div className="space-y-3">
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase text-gray-500 border-b border-white/5 pb-2">
+                          <span>Workflow Status</span>
+                          <span className="text-green-500">Operational</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase text-gray-500 border-b border-white/5 pb-2">
+                          <span>Last Sync</span>
+                          <span className="text-white">14m ago</span>
+                      </div>
+                  </div>
+
+                  <button 
+                    onClick={handleTriggerAutomation}
+                    disabled={automationSyncing}
+                    className={`w-full py-4 rounded-2xl border transition-all text-[9px] font-black uppercase tracking-[0.3em] italic ${automationSyncing ? 'bg-blue-600 animate-pulse text-white border-blue-500' : 'bg-white/5 text-blue-400 border-blue-500/30 hover:bg-blue-500/10'}`}
+                  >
+                    {automationSyncing ? 'Pushing to Make.ai...' : 'Manual Sync Trigger'}
+                  </button>
               </div>
           </div>
 
@@ -245,7 +295,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
               <div className="glass p-8 rounded-[3rem] border border-blue-500/20 space-y-8 bg-black/40 shadow-2xl">
                   <div className="flex justify-between items-center">
                       <h3 className="text-xl font-black italic uppercase text-white tracking-tighter">Dispatcher Dashboard</h3>
-                      <button onClick={() => setRefreshKey(k => k + 1)} className="text-blue-400 font-black text-[10px] uppercase italic">↻ Live Sync</button>
+                      <button onClick={() => { triggerHaptic('light'); setRefreshKey(k => k + 1); }} className="text-blue-400 font-black text-[10px] uppercase italic">↻ Live Sync</button>
                   </div>
                   
                   <div className="space-y-6">
@@ -266,7 +316,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                                       <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${ev.status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
                                           {ev.status}
                                       </span>
-                                      <button onClick={onNavigateInvoice} className="block w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black text-white uppercase tracking-widest hover:bg-white/10 transition-colors">Dispatch</button>
+                                      <button onClick={() => { triggerHaptic('light'); onNavigateInvoice(); }} className="block w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black text-white uppercase tracking-widest hover:bg-white/10 transition-colors">Dispatch</button>
                                   </div>
                               </div>
                           </div>
@@ -307,7 +357,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                                       <span className="text-blue-400">{client.status}</span>
                                    </div>
                                </div>
-                               <button onClick={onNavigateInvoice} className="text-blue-500 text-xl active-haptic">📄</button>
+                               <button onClick={() => { triggerHaptic('light'); onNavigateInvoice(); }} className="text-blue-500 text-xl active-haptic">📄</button>
                            </div>
                            
                            <div className="grid grid-cols-2 gap-4 text-[9px] font-bold border-t border-white/5 pt-3">

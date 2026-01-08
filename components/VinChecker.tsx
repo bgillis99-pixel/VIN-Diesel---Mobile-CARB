@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { extractVinAndPlateFromImage, validateVINCheckDigit, repairVin } from '../services/geminiService';
 import { decodeVinNHTSA, NHTSAVehicle } from '../services/nhtsa';
 import { trackEvent } from '../services/analytics';
+import { triggerHaptic } from '../services/haptics';
 
 const PHONE_ICON = (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,17 +76,21 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
         return;
     }
     setLoading(true);
+    triggerHaptic('light');
     const data = await decodeVinNHTSA(vin);
     if (data && data.valid) {
         setVehicleDetails(data);
         setErrorCorrection(null);
+        triggerHaptic('success');
     } else {
         setErrorCorrection('WARNING: VIN not in NHTSA.');
+        triggerHaptic('error');
     }
     setLoading(false);
   };
 
   const startScanner = async () => {
+    triggerHaptic('light');
     setIsScannerOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -103,6 +108,7 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
 
   const captureFrame = async () => {
     if (!videoRef.current || !canvasRef.current) return;
+    triggerHaptic('medium');
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
     canvasRef.current.width = videoRef.current.videoWidth;
@@ -120,27 +126,33 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
       setPlateVal(result.plate);
       setShowConfirmModal(true);
       setLoading(false);
+      triggerHaptic('success');
     }, 'image/jpeg');
   };
 
   const triggerRegistryCheck = () => {
     setShowConfirmModal(false);
+    triggerHaptic('heavy');
     const isCompliant = !isNaN(parseInt(inputVal.slice(-1)));
     setShowResultScreen(isCompliant ? 'compliant' : 'non-compliant');
     trackEvent('registry_check', { result: isCompliant ? 'compliant' : 'non-compliant' });
+    triggerHaptic(isCompliant ? 'success' : 'error');
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
         setLoading(true);
+        triggerHaptic('light');
         extractVinAndPlateFromImage(file).then(res => {
             setInputVal(res.vin);
             setPlateVal(res.plate);
             setShowConfirmModal(true);
             setLoading(false);
+            triggerHaptic('success');
         }).catch(() => {
           setLoading(false);
+          triggerHaptic('error');
           alert("Could not extract data from image. Please try again.");
         });
     }
@@ -167,6 +179,7 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
                 <input 
                   value={inputVal}
                   onChange={(e) => setInputVal(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && inputVal.length >= 11 && setShowConfirmModal(true)}
                   placeholder="VIN NUMBER"
                   maxLength={17}
                   className="w-full bg-transparent py-5 px-6 text-center text-2xl font-black text-white outline-none vin-monospace placeholder:text-gray-800 tracking-widest uppercase"
@@ -177,7 +190,7 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
           </div>
           <button 
             disabled={inputVal.length < 11 || loading}
-            onClick={() => setShowConfirmModal(true)}
+            onClick={() => { triggerHaptic('light'); setShowConfirmModal(true); }}
             className={`w-full py-6 text-[#020617] font-black rounded-[2rem] uppercase tracking-[0.4em] text-[10px] active-haptic disabled:opacity-30 italic ${MetallicStyle}`}
           >
             {BrushedTexture}
@@ -190,7 +203,7 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
               <div className="text-blue-500 group-hover:scale-110 transition-transform">{CAMERA_ICON}</div>
               <h2 className="text-white font-black text-xs uppercase tracking-widest italic text-center">Scan Label</h2>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl space-y-3 relative overflow-hidden active-haptic cursor-pointer flex flex-col items-center justify-center group" onClick={() => fileInputRef.current?.click()}>
+          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl space-y-3 relative overflow-hidden active-haptic cursor-pointer flex flex-col items-center justify-center group" onClick={() => { triggerHaptic('light'); fileInputRef.current?.click(); }}>
               <div className="text-blue-500 group-hover:scale-110 transition-transform">{UPLOAD_ICON}</div>
               <h2 className="text-white font-black text-xs uppercase tracking-widest italic text-center">Upload VIN</h2>
           </div>
@@ -203,12 +216,13 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
                 <input 
                   value={zipInput}
                   onChange={(e) => setZipInput(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  onKeyDown={(e) => e.key === 'Enter' && zipInput.length === 5 && onNavigateTools()}
                   placeholder="ZIP CODE"
                   className="w-full bg-transparent py-4 px-6 text-center text-lg font-black text-white outline-none tracking-widest placeholder:text-gray-800"
                 />
               </div>
               <button 
-                onClick={() => zipInput.length === 5 && onNavigateTools()}
+                onClick={() => { triggerHaptic('light'); zipInput.length === 5 && onNavigateTools(); }}
                 className={`px-8 rounded-[1.5rem] flex items-center justify-center active-haptic ${MetallicStyle}`}
               >
                 {BrushedTexture}
@@ -229,7 +243,7 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
             </div>
           </div>
           <div className="bg-black p-12 flex justify-between items-center px-16">
-            <button onClick={() => setIsScannerOpen(false)} className="text-white/40 text-[10px] font-black uppercase tracking-widest italic">EXIT</button>
+            <button onClick={() => { triggerHaptic('light'); setIsScannerOpen(false); }} className="text-white/40 text-[10px] font-black uppercase tracking-widest italic">EXIT</button>
             <button onClick={captureFrame} className="w-20 h-20 bg-white rounded-full border-[8px] border-white/20 active:scale-90 transition-transform">
                 <div className="w-full h-full border-2 border-black rounded-full"></div>
             </button>
@@ -252,6 +266,7 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
                       <input 
                         value={inputVal}
                         onChange={(e) => setInputVal(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => e.key === 'Enter' && triggerRegistryCheck()}
                         className="w-full bg-black/40 rounded-2xl border border-white/10 py-4 px-6 text-center text-xl font-black text-white vin-monospace tracking-widest outline-none"
                       />
                   </div>
@@ -260,12 +275,13 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
                       <input 
                         value={plateVal}
                         onChange={(e) => setPlateVal(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => e.key === 'Enter' && triggerRegistryCheck()}
                         className="w-full bg-black/40 rounded-2xl border border-white/10 py-4 px-6 text-center text-xl font-black text-white tracking-widest outline-none"
                       />
                   </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setShowConfirmModal(false)} className="py-5 bg-white/5 text-white border border-white/10 rounded-2xl font-black text-[9px] uppercase italic tracking-widest active-haptic">EDIT</button>
+                  <button onClick={() => { triggerHaptic('light'); setShowConfirmModal(false); }} className="py-5 bg-white/5 text-white border border-white/10 rounded-2xl font-black text-[9px] uppercase italic tracking-widest active-haptic">EDIT</button>
                   <button 
                     disabled={inputVal.length !== 17}
                     onClick={triggerRegistryCheck} 
@@ -292,7 +308,7 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
                     </h2>
                     <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-60 italic">Status Verified Registry</p>
                 </div>
-                <button onClick={() => setShowResultScreen(null)} className="text-white/40 text-[10px] font-black uppercase tracking-[0.5em] hover:text-white transition-colors pt-8">Close Portal</button>
+                <button onClick={() => { triggerHaptic('light'); setShowResultScreen(null); }} className="text-white/40 text-[10px] font-black uppercase tracking-[0.5em] hover:text-white transition-colors pt-8">Close Portal</button>
              </div>
         </div>
       )}

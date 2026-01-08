@@ -5,6 +5,7 @@ import { saveIntakeSubmission, saveClientToCRM } from '../services/firebase';
 import { decodeVinNHTSA } from '../services/nhtsa';
 import { trackEvent } from '../services/analytics';
 import { IntakeMode, ExtractedTruckData } from '../types';
+import { triggerHaptic } from '../services/haptics';
 
 const ModeButton = ({ icon, label, onClick, sub }: { icon: string, label: string, onClick: () => void, sub: string }) => (
     <button 
@@ -32,12 +33,12 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Explicitly type files as File[] to resolve type errors on line 45
         const files: File[] = Array.from(e.target.files || []);
         if (files.length === 0) return;
         
         setSelectedFiles(files);
         setLoading(true);
+        triggerHaptic('medium');
         setStep('extraction');
 
         try {
@@ -55,8 +56,10 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
             }
 
             setExtractedResult(data);
+            triggerHaptic('success');
             trackEvent('intake_extraction_complete', { mode, fileCount: files.length });
         } catch (err) {
+            triggerHaptic('error');
             alert("AI Sync Error. Please try with higher resolution photos.");
             setStep('mode');
         } finally {
@@ -67,6 +70,7 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const handleFinalSubmit = async () => {
         if (!extractedResult) return;
         setLoading(true);
+        triggerHaptic('heavy');
         
         try {
             await saveIntakeSubmission({
@@ -96,8 +100,10 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 notes: `Batch Uploaded. Drive Path: Folder-Dr. Gillis`
             });
 
+            triggerHaptic('success');
             setStep('success');
         } catch (e) {
+            triggerHaptic('error');
             alert("Database Link Failure.");
         } finally {
             setLoading(false);
@@ -106,12 +112,13 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
     const copyToClipboard = (text?: string) => {
         if (!text) return;
+        triggerHaptic('light');
         navigator.clipboard.writeText(text);
-        // Simple visual feedback could go here
     };
 
     const copyFullTemplate = () => {
         if (!extractedResult) return;
+        triggerHaptic('medium');
         const text = `
 Inspection Date: ${extractedResult.inspectionDate || ''}
 VIN: ${extractedResult.vin || ''}
@@ -145,17 +152,19 @@ DPF: ${extractedResult.dpf || 'P'}
                         <input 
                             value={clientName}
                             onChange={e => setClientName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && clientName && setStep('mode')}
                             placeholder="CLIENT / COMPANY NAME"
                             className="w-full bg-white/5 p-5 rounded-3xl border border-white/10 outline-none focus:border-blue-500 text-sm font-black text-white uppercase italic tracking-widest"
                         />
                         <input 
                             value={clientPhone}
                             onChange={e => setClientPhone(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && clientName && setStep('mode')}
                             placeholder="PHONE NUMBER"
                             className="w-full bg-white/5 p-5 rounded-3xl border border-white/10 outline-none focus:border-blue-500 text-sm font-bold text-white tracking-widest"
                         />
                         <button 
-                            onClick={() => setStep('mode')}
+                            onClick={() => { triggerHaptic('light'); setStep('mode'); }}
                             disabled={!clientName}
                             className="w-full py-6 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-xs shadow-xl disabled:opacity-50 mt-4"
                         >
@@ -179,14 +188,14 @@ DPF: ${extractedResult.dpf || 'P'}
                         icon="📁" 
                         label="Batch Upload (All Docs)" 
                         sub="Upload VIN, Plate, ODO, and Tag together" 
-                        onClick={() => { setMode('BATCH_MODE'); fileInputRef.current?.click(); }}
+                        onClick={() => { triggerHaptic('light'); setMode('BATCH_MODE'); fileInputRef.current?.click(); }}
                     />
                     <div className="h-px bg-white/10 my-4 mx-8"></div>
                     <ModeButton 
                         icon="✨" 
                         label="Magic Scan (Single Doc)" 
                         sub="Auto-identify document type" 
-                        onClick={() => { setMode('AUTO_DETECT'); fileInputRef.current?.click(); }}
+                        onClick={() => { triggerHaptic('light'); setMode('AUTO_DETECT'); fileInputRef.current?.click(); }}
                     />
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileUpload} />
@@ -248,7 +257,7 @@ DPF: ${extractedResult.dpf || 'P'}
                         </div>
 
                         <div className="flex gap-4">
-                            <button onClick={() => setStep('mode')} className="flex-1 py-6 bg-white/5 text-white font-black rounded-[2rem] uppercase tracking-widest text-[9px] border border-white/10">Retry</button>
+                            <button onClick={() => { triggerHaptic('light'); setStep('mode'); }} className="flex-1 py-6 bg-white/5 text-white font-black rounded-[2rem] uppercase tracking-widest text-[9px] border border-white/10">Retry</button>
                             <button onClick={handleFinalSubmit} className="flex-[2] py-6 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-[10px] shadow-2xl">Confirm & Add to CRM</button>
                         </div>
                     </div>
@@ -271,7 +280,7 @@ DPF: ${extractedResult.dpf || 'P'}
                         <p className="text-[10px] font-black text-white bg-white/10 inline-block px-4 py-2 rounded-full uppercase tracking-widest">Folder-Dr. Gillis (Google Drive)</p>
                     </div>
                 </div>
-                <button onClick={onComplete} className="bg-white text-carb-navy px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest italic active-haptic">Back to HUB</button>
+                <button onClick={() => { triggerHaptic('light'); onComplete(); }} className="bg-white text-carb-navy px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest italic active-haptic">Back to HUB</button>
             </div>
         );
     }

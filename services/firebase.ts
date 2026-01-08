@@ -52,6 +52,16 @@ const mockAuth = {
   }
 };
 
+/**
+ * Conceptual hook for Make.ai automation.
+ * In production, this calls a webhook that triggers a Make.com scenario.
+ */
+export const triggerMakeAutomation = async (event: string, payload: any) => {
+  console.log(`[Make.ai] Triggering automation for: ${event}`, payload);
+  // Example: fetch('https://hook.make.com/your-webhook-id', { method: 'POST', body: JSON.stringify(payload) });
+  return true;
+};
+
 export const signInWithGoogle = async () => {
   if (isMockMode || !auth) {
     const mockUser = {
@@ -88,10 +98,16 @@ export const saveClientToCRM = async (client: Omit<CrmClient, 'id'>) => {
         const newClient = { ...client, id: Date.now().toString() };
         clients.unshift(newClient);
         localStorage.setItem('crm_clients', JSON.stringify(clients));
+        
+        // Automation Hook
+        triggerMakeAutomation('CLIENT_ADDED', newClient);
+        
         return newClient;
     }
     const docRef = await addDoc(collection(db, "crm_clients"), client);
-    return { id: docRef.id, ...client };
+    const saved = { id: docRef.id, ...client };
+    triggerMakeAutomation('CLIENT_ADDED', saved);
+    return saved;
 };
 
 export const getClientsFromCRM = async () => {
@@ -105,33 +121,28 @@ export const getClientsFromCRM = async () => {
 
 // --- INTAKE SUBMISSIONS ---
 
-const notifyAdminOfNewSubmission = (submission: any) => {
-    console.log("ALERT: New Submission Received!");
-    console.log("Sending Email Notification to admin...");
-    console.log("Target Drive Folder: Folder-Dr. Gillis");
-    // In a real app with Backend/Cloud Functions, we would trigger the email/drive API here.
-    // For now, we flag it in the database.
-};
-
 export const saveIntakeSubmission = async (submission: Omit<IntakeSubmission, 'id'>) => {
-  // Add metadata for Drive and Notification
   const finalSubmission = {
       ...submission,
       driveDestination: 'Folder-Dr. Gillis',
       adminNotified: true
   };
 
-  notifyAdminOfNewSubmission(finalSubmission);
-
   if (isMockMode || !db) {
     const submissions = JSON.parse(localStorage.getItem('inbound_intakes') || '[]');
     const newSub = { ...finalSubmission, id: Date.now().toString() };
     submissions.unshift(newSub);
     localStorage.setItem('inbound_intakes', JSON.stringify(submissions));
+    
+    // Automation Hook for Drive & Notifications
+    triggerMakeAutomation('INTAKE_SUBMISSION', newSub);
+    
     return newSub;
   }
   const docRef = await addDoc(collection(db, "intakes"), finalSubmission);
-  return { id: docRef.id, ...finalSubmission };
+  const saved = { id: docRef.id, ...finalSubmission };
+  triggerMakeAutomation('INTAKE_SUBMISSION', saved);
+  return saved;
 };
 
 export const subscribeToInboundIntakes = (callback: (data: IntakeSubmission[]) => void) => {
