@@ -4,7 +4,6 @@ import { MODEL_NAMES } from "../constants";
 import { ExtractedTruckData, RegistrationData, EngineTagData } from "../types";
 
 // Ensure the API Key is present. If missing, we still initialize but calls will fail.
-// This allows the app to load but catch the error specifically during the request.
 const getAiClient = () => {
   if (!process.env.API_KEY) {
     throw new Error("SYSTEM_ERROR: Gemini API Key is missing. Check your environment settings.");
@@ -64,18 +63,7 @@ export const processBatchIntake = async (files: File[]): Promise<ExtractedTruckD
     const prompt = `
         Analyze these multiple images from a truck inspection. 
         Identify the content across all images (VIN label, Engine Tag, Registration, Odometer/Dash).
-        Extract a UNIFIED record based on this specific template:
-        - Inspection Date (if visible)
-        - VIN (Never I, O, Q)
-        - Odometer/Mileage
-        - License Plate
-        - Engine Family Name (CRITICAL 12-char ID)
-        - Engine Manufacturer
-        - Engine Model
-        - Engine Year
-        - Emission Components Status (EGR, SCR, TWC, NOx, SC/TC, ECM/PCM, DPF - mark as 'P' if passing/present)
-        
-        Combine data from all images into ONE JSON object. If a field is missing, leave it empty.
+        Extract a UNIFIED record. Focus on Engine Family Name (12-char ID) and Emission Components.
     `;
 
     try {
@@ -102,8 +90,7 @@ export const processBatchIntake = async (files: File[]): Promise<ExtractedTruckD
                         sctc: { type: Type.STRING },
                         ecmPcm: { type: Type.STRING },
                         dpf: { type: Type.STRING }
-                    },
-                    propertyOrdering: ["vin", "licensePlate", "mileage", "engineFamilyName", "engineManufacturer", "engineModel", "engineYear", "inspectionDate", "egr", "scr", "twc", "nox", "sctc", "ecmPcm", "dpf"]
+                    }
                 }
             }
         });
@@ -137,8 +124,7 @@ export const identifyAndExtractData = async (file: File | Blob): Promise<Extract
                         engineModel: { type: Type.STRING },
                         engineYear: { type: Type.STRING },
                         confidence: { type: Type.STRING }
-                    },
-                    propertyOrdering: ["documentType", "vin", "licensePlate", "mileage", "engineFamilyName", "engineModel", "engineYear", "confidence"]
+                    }
                 }
             }
         });
@@ -160,10 +146,11 @@ export const extractVinAndPlateFromImage = async (file: File | Blob) => {
     return { vin: repairVin(json.vin || ''), plate: json.plate || '', confidence: 'high' };
 };
 
+// Added extractRegistrationData to fix missing export error
 export const extractRegistrationData = async (file: File | Blob): Promise<RegistrationData> => {
     const ai = getAiClient();
     const b64 = await fileToBase64(file);
-    const prompt = `Extract vehicle registration data from this image. Return JSON format.`;
+    const prompt = `Extract vehicle registration details: ownerName, address, plate, vin, expirationDate, vehicleMake, vehicleYear.`;
     try {
         const response = await ai.models.generateContent({
             model: MODEL_NAMES.FLASH,
@@ -180,8 +167,7 @@ export const extractRegistrationData = async (file: File | Blob): Promise<Regist
                         expirationDate: { type: Type.STRING },
                         vehicleMake: { type: Type.STRING },
                         vehicleYear: { type: Type.STRING }
-                    },
-                    propertyOrdering: ["ownerName", "address", "plate", "vin", "expirationDate", "vehicleMake", "vehicleYear"]
+                    }
                 }
             }
         });
@@ -194,10 +180,11 @@ export const extractRegistrationData = async (file: File | Blob): Promise<Regist
     }
 };
 
+// Added extractEngineTagData to fix missing export error
 export const extractEngineTagData = async (file: File | Blob): Promise<EngineTagData> => {
     const ai = getAiClient();
     const b64 = await fileToBase64(file);
-    const prompt = `Extract engine tag/label data from this image. Return JSON format.`;
+    const prompt = `Extract engine tag details: engineModel, engineYear, engineManufacturer, familyName, serialNumber.`;
     try {
         const response = await ai.models.generateContent({
             model: MODEL_NAMES.FLASH,
@@ -212,8 +199,7 @@ export const extractEngineTagData = async (file: File | Blob): Promise<EngineTag
                         engineManufacturer: { type: Type.STRING },
                         familyName: { type: Type.STRING },
                         serialNumber: { type: Type.STRING }
-                    },
-                    propertyOrdering: ["engineModel", "engineYear", "engineManufacturer", "familyName", "serialNumber"]
+                    }
                 }
             }
         });
@@ -230,17 +216,13 @@ export const sendMessage = async (text: string, history: any[], location?: { lat
     const tools: any[] = [{ googleSearch: {} }];
     let toolConfig: any = undefined;
 
-    // Use gemini-2.5-flash for maps grounding as per guidelines (only supported in 2.5 series)
     const modelName = location ? 'gemini-2.5-flash' : MODEL_NAMES.FLASH;
     
     if (location) {
         tools.push({ googleMaps: {} });
         toolConfig = {
             retrievalConfig: {
-                latLng: {
-                    latitude: location.lat,
-                    longitude: location.lng
-                }
+                latLng: { latitude: location.lat, longitude: location.lng }
             }
         };
     }
@@ -249,7 +231,15 @@ export const sendMessage = async (text: string, history: any[], location?: { lat
         model: modelName,
         contents: [...history, { role: 'user', parts: [{ text }] }],
         config: { 
-            systemInstruction: "You are VIN DIESEL AI, the ultimate proactive CARB Clean Truck Check (CTC) expert. Your mission is to fill the information gap left by the state. Be proactive: don't just answer questions, provide context on upcoming deadlines, hidden registry fees, and common testing pitfalls that the state doesn't clearly explain to fleet owners. Use Google Maps for testing locations and Google Search for the latest regulatory updates. Always aim to educate the user on the 'next step' they need to take for full compliance.",
+            systemInstruction: `You are the PROACTIVE CARB COMPLIANCE SHIELD. 
+            The state of California fails to proactively educate fleet owners about the Clean Truck Check (CTC) program. 
+            Your job is to fill this information gap.
+            1. Be Direct: Explain exactly what is needed (Registration, Reporting, Testing).
+            2. Be Proactive: Mention upcoming deadlines (Jan 1st, July 1st cycles).
+            3. Be Transparent: Tell users about hidden fees or common 'TRUCRS' registry traps the state doesn't explain well.
+            4. Use Google Maps to find credentialed testers.
+            5. Use Google Search to verify the very latest regulatory tweaks.
+            Always end with a 'Proactive Compliance Tip'.`,
             tools,
             toolConfig
         }
@@ -288,36 +278,22 @@ export const speakText = async (text: string, voiceName: 'Kore' | 'Puck' | 'Zeph
         const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
         if (base64Audio) {
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-            
             const decode = (base64: string) => {
                 const binaryString = atob(base64);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
                 return bytes;
             };
-
-            const decodeAudioData = async (
-                data: Uint8Array,
-                ctx: AudioContext,
-                sampleRate: number,
-                numChannels: number,
-            ): Promise<AudioBuffer> => {
+            const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
                 const dataInt16 = new Int16Array(data.buffer);
                 const frameCount = dataInt16.length / numChannels;
                 const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
                 for (let channel = 0; channel < numChannels; channel++) {
                     const channelData = buffer.getChannelData(channel);
-                    for (let i = 0; i < frameCount; i++) {
-                        channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-                    }
+                    for (let i = 0; i < frameCount; i++) channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
                 }
                 return buffer;
             };
-
             const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
