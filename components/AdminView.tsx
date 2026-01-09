@@ -286,51 +286,48 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
       {adminViewMode === 'INTAKES' && (
           <div className="px-4 space-y-6 animate-in slide-in-from-bottom-4">
               <div className="text-center">
-                  <h3 className="text-xl font-black italic uppercase text-white tracking-tighter">Field Submissions</h3>
+                  <h3 className="text-xl font-black italic uppercase text-white tracking-tighter">Field Intelligence</h3>
                   <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em]">Correction Audit Enabled</p>
               </div>
 
               {intakes.length === 0 ? (
                   <div className="glass p-12 rounded-[3rem] text-center italic text-gray-500 text-xs" aria-live="polite">
-                      No inbound field data detected today.
+                      No inbound field sessions detected.
                   </div>
               ) : (
                   <div className="space-y-4" role="list">
                       {intakes.map((intake) => {
                           const data = intake.extractedData as any;
                           const aiData = intake.originalAiData as any;
-                          const hasCorrections = aiData && Object.keys(data).some(k => data[k] !== aiData[k]);
+                          const corrections = aiData ? Object.keys(data).filter(k => data[k] !== aiData[k]) : [];
                           
                           return (
                               <div key={intake.id} className="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 space-y-4 shadow-xl" role="listitem">
                                   <div className="flex justify-between items-start border-b border-white/5 pb-4">
                                       <div>
-                                          <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest">{new Date(intake.timestamp).toLocaleTimeString()}</p>
+                                          <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest">{new Date(intake.timestamp).toLocaleString()}</p>
                                           <h4 className="text-lg font-black text-white italic uppercase tracking-tighter">{intake.clientName}</h4>
                                           <div className="flex items-center gap-2 mt-1">
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">VIN: {data?.vin || 'MISSING'}</p>
-                                            {hasCorrections && <span className="px-2 py-0.5 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded text-[7px] font-black uppercase italic">AI CORRECTED</span>}
+                                            <span className="text-[8px] font-black text-gray-600 uppercase">Session: {intake.sessionId}</span>
+                                            {corrections.length > 0 && <span className="px-2 py-0.5 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded text-[7px] font-black uppercase italic">{corrections.length} CORRECTIONS</span>}
                                           </div>
                                       </div>
-                                      <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-[8px] font-black uppercase tracking-widest italic">Verified</span>
+                                      <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-[8px] font-black uppercase tracking-widest italic">Archived</span>
                                   </div>
                                   
                                   <div className="grid grid-cols-2 gap-4">
-                                      {['vin', 'licensePlate', 'engineFamilyName', 'mileage'].map(field => {
+                                      {['vin', 'licensePlate', 'engineFamilyName', 'engineYear'].map(field => {
                                           const isCorrected = aiData && data[field] !== aiData[field];
                                           return (
                                               <div key={field} className="space-y-1">
-                                                  <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest">{field === 'licensePlate' ? 'Plate' : field.replace(/([A-Z])/g, ' $1')}</p>
-                                                  <div className="relative">
-                                                    <p className={`text-[10px] font-black italic truncate ${isCorrected ? 'text-orange-400 underline decoration-dotted' : 'text-gray-300'}`}>
+                                                  <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest">{field.replace(/([A-Z])/g, ' $1')}</p>
+                                                  <div className="relative group">
+                                                    <p className={`text-[10px] font-black italic truncate ${isCorrected ? 'text-orange-400' : 'text-gray-300'}`}>
                                                         {data?.[field] || 'N/A'}
                                                     </p>
                                                     {isCorrected && (
-                                                        <div className="absolute -top-3 right-0 group">
-                                                            <span className="cursor-help text-[8px] font-black text-gray-700">?</span>
-                                                            <div className="hidden group-hover:block absolute bottom-full right-0 bg-black p-2 border border-white/10 rounded text-[8px] font-medium text-gray-500 whitespace-nowrap z-50">
-                                                                AI was: {aiData[field] || 'Empty'}
-                                                            </div>
+                                                        <div className="absolute bottom-full left-0 hidden group-hover:block bg-black border border-white/10 p-2 rounded text-[7px] font-black text-gray-500 z-50 whitespace-nowrap">
+                                                            AI Was: {aiData[field] || 'None'}
                                                         </div>
                                                     )}
                                                   </div>
@@ -338,6 +335,16 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                                           );
                                       })}
                                   </div>
+
+                                  {intake.photos?.batch && intake.photos.batch.length > 0 && (
+                                      <div className="flex gap-2 overflow-x-auto pt-2 no-scrollbar">
+                                          {intake.photos.batch.map((p, idx) => (
+                                              <div key={idx} className="w-12 h-12 rounded-lg border border-white/10 overflow-hidden flex-shrink-0">
+                                                  <img src={p} className="w-full h-full object-cover grayscale opacity-50" alt="Field Doc" />
+                                              </div>
+                                          ))}
+                                      </div>
+                                  )}
                               </div>
                           );
                       })}

@@ -61,6 +61,7 @@ export interface ExtractedTruckData {
 
 export interface IntakeSubmission {
   id: string;
+  sessionId?: string; 
   clientName: string;
   timestamp: number;
   photos: {
@@ -71,9 +72,10 @@ export interface IntakeSubmission {
     engine: string | null;
     exterior: string | null;
     registration: string | null;
+    batch?: string[];
   };
   extractedData: ExtractedTruckData | RegistrationData | EngineTagData | null;
-  originalAiData?: any; // To track AI vs Human for learning
+  originalAiData?: any; 
   status: 'pending' | 'reviewed' | 'exported';
   mode: IntakeMode;
   driveDestination?: string;

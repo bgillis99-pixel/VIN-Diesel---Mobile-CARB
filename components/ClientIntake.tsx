@@ -22,6 +22,7 @@ const ModeButton = ({ icon, label, onClick, sub }: { icon: string, label: string
 );
 
 const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+    const [sessionId, setSessionId] = useState('');
     const [clientName, setClientName] = useState('');
     const [clientPhone, setClientPhone] = useState('');
     const [clientEmail, setClientEmail] = useState('');
@@ -30,47 +31,76 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [step, setStep] = useState<'name' | 'mode' | 'extraction' | 'success'>('name');
     const [originalAiData, setOriginalAiData] = useState<any>(null);
     const [editableData, setEditableData] = useState<any>({});
-    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // PERSISTENCE: Recovery mechanism for field operations
+    useEffect(() => {
+        const savedSession = localStorage.getItem('carb_active_intake_session');
+        if (savedSession) {
+            const data = JSON.parse(savedSession);
+            setSessionId(data.sessionId);
+            setClientName(data.clientName);
+            setClientPhone(data.clientPhone);
+            setEditableData(data.editableData);
+            setOriginalAiData(data.originalAiData);
+            setPreviewUrls(data.previewUrls || []);
+            if (data.previewUrls?.length > 0) setStep('extraction');
+        } else {
+            setSessionId(`FLD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
+        }
+    }, []);
+
+    // PERSISTENCE: Save progress on every state change
+    useEffect(() => {
+        if (clientName || previewUrls.length > 0) {
+            localStorage.setItem('carb_active_intake_session', JSON.stringify({
+                sessionId, clientName, clientPhone, editableData, originalAiData, previewUrls
+            }));
+        }
+    }, [sessionId, clientName, clientPhone, editableData, originalAiData, previewUrls]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files: File[] = Array.from(e.target.files || []);
         if (files.length === 0) return;
         
-        setSelectedFiles(files);
         const urls = files.map(file => URL.createObjectURL(file));
-        setPreviewUrls(urls);
+        setPreviewUrls(prev => [...prev, ...urls]);
         
         setLoading(true);
         triggerHaptic('medium');
         setStep('extraction');
 
         try {
-            let data: any;
+            let newData: any;
             if (files.length > 1 || mode === 'BATCH_MODE') {
-                data = await processBatchIntake(files);
+                newData = await processBatchIntake(files);
             } else if (mode === 'AUTO_DETECT') {
-                data = await identifyAndExtractData(files[0]);
+                newData = await identifyAndExtractData(files[0]);
             } else if (mode === 'VIN_LABEL') {
-                data = await extractVinAndPlateFromImage(files[0]);
+                newData = await extractVinAndPlateFromImage(files[0]);
             } else if (mode === 'REGISTRATION') {
-                data = await extractRegistrationData(files[0]);
+                newData = await extractRegistrationData(files[0]);
             } else if (mode === 'ENGINE_TAG') {
-                data = await extractEngineTagData(files[0]);
+                newData = await extractEngineTagData(files[0]);
             }
 
-            setOriginalAiData({ ...data }); // Capture for learning
-            setEditableData({ ...data });
+            // MERGE Logic: Keep user corrections but fill empty gaps with new AI data
+            const mergedData = { ...editableData };
+            Object.keys(newData).forEach(key => {
+                if (!mergedData[key]) mergedData[key] = newData[key];
+            });
+
+            setOriginalAiData(prev => ({ ...prev, ...newData }));
+            setEditableData(mergedData);
             triggerHaptic('success');
-            trackEvent('intake_extraction_complete', { mode, fileCount: files.length });
+            trackEvent('intake_extraction_updated', { sessionId, fileCount: previewUrls.length + files.length });
         } catch (err: any) {
             triggerHaptic('error');
             const message = err.message?.includes('API Key is missing') 
-                ? "SYSTEM ERROR: Gemini API Key not found. Please contact admin."
-                : "AI Sync Error. Please try with higher resolution photos.";
+                ? "NO GEMINI KEY: Deployment environment missing API_KEY. Contact admin to add the key to Vercel/Firebase settings."
+                : "Sync Error: Area has low reception or AI is busy. Your photos are saved, try sync again later.";
             alert(message);
-            setStep('mode');
         } finally {
             setLoading(false);
         }
@@ -87,75 +117,53 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         
         try {
             await saveIntakeSubmission({
+                sessionId,
                 clientName,
                 timestamp: Date.now(),
-                photos: { vin: null, plate: null, odometer: null, ecl: null, engine: null, exterior: null, registration: null },
+                photos: { vin: null, plate: null, odometer: null, ecl: null, engine: null, exterior: null, registration: null, batch: previewUrls },
                 extractedData: editableData,
-                originalAiData: originalAiData, // Stored for tracking and learning
+                originalAiData: originalAiData,
                 status: 'pending',
                 mode: mode || 'FULL_INTAKE'
             });
-
-            const vin = editableData.vin || '';
-            let nhtsaData = null;
-            if (vin && vin.length === 17) nhtsaData = await decodeVinNHTSA(vin);
 
             await saveClientToCRM({
                 clientName,
                 phone: clientPhone,
                 email: clientEmail,
-                vin,
+                vin: editableData.vin || '',
                 plate: editableData.licensePlate || '',
-                make: nhtsaData?.make || editableData.engineManufacturer || '',
-                model: nhtsaData?.model || editableData.engineModel || '',
-                year: nhtsaData?.year || editableData.engineYear || '',
                 timestamp: Date.now(),
                 status: 'New',
-                notes: `Batch Uploaded. Tracking AI corrections active.`
+                notes: `Session: ${sessionId}. AI Corrected: ${JSON.stringify(originalAiData !== editableData)}`
             });
 
+            localStorage.removeItem('carb_active_intake_session');
             triggerHaptic('success');
             setStep('success');
         } catch (e) {
             triggerHaptic('error');
-            alert("Database Link Failure.");
+            alert("Record failed to sync. Photos are still saved on device.");
         } finally {
             setLoading(false);
         }
-    };
-
-    const copyToClipboard = (text?: string) => {
-        if (!text) return;
-        triggerHaptic('light');
-        navigator.clipboard.writeText(text);
     };
 
     const copyFullTemplate = () => {
         if (!editableData) return;
         triggerHaptic('medium');
         const text = `
-Inspection Date: ${editableData.inspectionDate || ''}
-VIN: ${editableData.vin || ''}
-Odometer: ${editableData.mileage || ''}
-License Plate: ${editableData.licensePlate || ''}
-Engine Family Name: ${editableData.engineFamilyName || ''}
-Engine manufacturer: ${editableData.engineManufacturer || ''}
-Engine model: ${editableData.engineModel || ''}
-Engine year: ${editableData.engineYear || ''}
-EGR: ${editableData.egr || 'P'}
-SCR: ${editableData.scr || 'P'}
-TWC: ${editableData.twc || 'P'}
-NOx: ${editableData.nox || 'P'}
-SC/TC: ${editableData.sctc || 'P'}
-ECM/PCM: ${editableData.ecmPcm || 'P'}
-DPF: ${editableData.dpf || 'P'}
+SESSION: ${sessionId}
+DATE: ${editableData.inspectionDate || new Date().toLocaleDateString()}
+VIN: ${editableData.vin || 'MISSING'}
+PLATE: ${editableData.licensePlate || 'MISSING'}
+ODO: ${editableData.mileage || 'MISSING'}
+ENGINE ID: ${editableData.engineFamilyName || 'MISSING'}
+MAKE: ${editableData.engineManufacturer || 'MISSING'}
+YEAR: ${editableData.engineYear || 'MISSING'}
         `.trim();
-        copyToClipboard(text);
-    };
-
-    const handleTextBryan = () => {
-        triggerHaptic('light');
-        window.location.href = "sms:19168904427&body=Hi Bryan, I need help with a CARB intake review.";
+        navigator.clipboard.writeText(text);
+        alert("Compliance Record Copied");
     };
 
     if (step === 'name') {
@@ -163,29 +171,28 @@ DPF: ${editableData.dpf || 'P'}
             <div className="max-w-md mx-auto py-6 animate-in fade-in duration-500">
                 <div className="glass p-10 rounded-[3.5rem] border border-blue-500/20 space-y-8">
                     <div className="text-center space-y-2">
-                        <h2 className="text-3xl font-black italic tracking-tighter uppercase">Intake Portal</h2>
-                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em]">Multi-Asset Processor</p>
+                        <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest italic">{sessionId}</p>
+                        <h2 className="text-3xl font-black italic tracking-tighter uppercase">Field Intake</h2>
+                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em]">Multi-Asset Link</p>
                     </div>
                     
                     <div className="space-y-4 pt-4">
                         <input 
                             value={clientName}
                             onChange={e => setClientName(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && clientName && setStep('mode')}
-                            placeholder="CLIENT / COMPANY NAME"
+                            placeholder="OPERATOR / COMPANY NAME"
                             className="w-full bg-white/5 p-5 rounded-3xl border border-white/10 outline-none focus:border-blue-500 text-sm font-black text-white uppercase italic tracking-widest"
                         />
                         <input 
                             value={clientPhone}
                             onChange={e => setClientPhone(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && clientName && setStep('mode')}
-                            placeholder="PHONE NUMBER"
+                            placeholder="PRIMARY PHONE"
                             className="w-full bg-white/5 p-5 rounded-3xl border border-white/10 outline-none focus:border-blue-500 text-sm font-bold text-white tracking-widest"
                         />
                         <button 
                             onClick={() => { triggerHaptic('light'); setStep('mode'); }}
                             disabled={!clientName}
-                            className="w-full py-6 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-xs shadow-xl disabled:opacity-50 mt-4"
+                            className="w-full py-6 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-xs shadow-xl disabled:opacity-50 mt-4 active-haptic"
                         >
                             Select Documents
                         </button>
@@ -198,117 +205,128 @@ DPF: ${editableData.dpf || 'P'}
     if (step === 'mode') {
         return (
             <div className="max-w-md mx-auto space-y-8 py-10 animate-in slide-in-from-bottom-10 duration-700">
-                <div className="text-center space-y-1">
+                <div className="text-center">
                     <h2 className="text-xl font-black italic tracking-tighter uppercase text-gray-500">{clientName}</h2>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tight">Select Intake Mode</h3>
+                    <h3 className="text-2xl font-black text-white uppercase tracking-tight">Select Test Scope</h3>
                 </div>
                 <div className="space-y-4">
                     <ModeButton 
                         icon="📁" 
-                        label="Batch Upload (All Docs)" 
+                        label="Full Batch Sync" 
                         sub="Upload VIN, Plate, ODO, and Tag together" 
                         onClick={() => { triggerHaptic('light'); setMode('BATCH_MODE'); fileInputRef.current?.click(); }}
                     />
                     <div className="h-px bg-white/10 my-4 mx-8"></div>
                     <ModeButton 
                         icon="✨" 
-                        label="Magic Scan (Single Doc)" 
-                        sub="Auto-identify document type" 
+                        label="OVI Auto-Link" 
+                        sub="Single photo document detection" 
                         onClick={() => { triggerHaptic('light'); setMode('AUTO_DETECT'); fileInputRef.current?.click(); }}
                     />
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileUpload} />
+                <div className="text-center">
+                    <button onClick={() => setStep('name')} className="text-[9px] font-black text-gray-700 uppercase italic">‹ Edit Company</button>
+                </div>
             </div>
         );
     }
 
     if (step === 'extraction') {
         return (
-            <div className="max-w-4xl mx-auto py-10 space-y-8 animate-in fade-in duration-500">
+            <div className="max-w-4xl mx-auto py-10 space-y-8 animate-in fade-in duration-500 pb-20">
+                <div className="flex justify-between items-center px-4 no-print">
+                    <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic">ID: {sessionId}</span>
+                        <h2 className="text-xl font-black text-white uppercase italic tracking-tighter leading-none">{clientName}</h2>
+                    </div>
+                    <button 
+                        onClick={() => { triggerHaptic('light'); fileInputRef.current?.click(); }} 
+                        className="bg-white/10 border border-white/20 px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest text-white active-haptic"
+                    >
+                        + Add Document
+                    </button>
+                </div>
+
                 {loading ? (
-                    <div className="glass p-16 rounded-[4rem] flex flex-col items-center gap-6">
+                    <div className="glass p-20 rounded-[4rem] flex flex-col items-center gap-6">
                         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] animate-pulse">Syncing with NorCal CARB Database...</p>
-                        <div className="text-center">
-                            <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Processing {selectedFiles.length} files</p>
-                        </div>
+                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] animate-pulse">Syncing NorCal Cloud Data...</p>
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        {/* Comparison Gallery */}
                         <div className="space-y-4">
-                            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic ml-4">Source Photos for Verification</h3>
+                            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic ml-4">Evidence Gallery</h3>
                             <div className="flex gap-4 overflow-x-auto pb-4 px-2 no-scrollbar">
                                 {previewUrls.map((url, i) => (
                                     <div key={i} className="flex-shrink-0 w-64 h-48 rounded-3xl overflow-hidden border border-white/10 shadow-xl group relative">
                                         <img src={url} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt={`Source ${i}`} />
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => window.open(url)} className="bg-white/10 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest">View Full</button>
+                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => window.open(url)} className="bg-white/10 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest">Full Preview</button>
                                         </div>
                                     </div>
                                 ))}
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex-shrink-0 w-64 h-48 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-gray-600 hover:bg-white/5 transition-all"
+                                >
+                                    <span className="text-3xl">+</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest">Add Evidence</span>
+                                </button>
                             </div>
                         </div>
 
-                        <div className="glass p-6 sm:p-10 rounded-[3.5rem] border border-white/10 space-y-8 bg-white/5 shadow-2xl">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-3xl font-black italic uppercase text-white tracking-tighter">Review Record</h3>
-                                <div className="flex gap-2">
-                                    <button onClick={handleTextBryan} className="px-5 py-2.5 bg-green-600 rounded-xl text-[9px] font-black uppercase tracking-widest text-white shadow-lg active-haptic">Text Bryan</button>
-                                    <button onClick={copyFullTemplate} className="px-5 py-2.5 bg-blue-600 rounded-xl text-[9px] font-black uppercase tracking-widest text-white hover:bg-blue-500 transition-colors">Copy All</button>
-                                </div>
+                        <div className="glass p-8 sm:p-12 rounded-[3.5rem] border border-white/10 space-y-10 bg-white/5 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-8">
+                                <button onClick={copyFullTemplate} className="text-blue-500 text-xl active-haptic">📋</button>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <h3 className="text-3xl font-black italic uppercase text-white tracking-tighter">OVI Audit</h3>
+                                <p className="text-[9px] font-bold text-red-400 uppercase tracking-widest italic">Manual Corrections tracked for learning accuracy</p>
                             </div>
 
-                            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl mb-4 text-center">
-                                <p className="text-[9px] font-black text-red-400 uppercase tracking-[0.2em] italic">
-                                    MANUAL OVERRIDE ACTIVE: Please adjust any fields incorrectly extracted by the AI. These adjustments help our system learn.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 {[
-                                    { label: 'Inspection Date', value: originalAiData?.inspectionDate, key: 'inspectionDate' },
-                                    { label: 'VIN (Never I, O, Q)', value: originalAiData?.vin, key: 'vin' },
-                                    { label: 'Odometer (Mileage)', value: originalAiData?.mileage, key: 'mileage' },
-                                    { label: 'License Plate ID', value: originalAiData?.licensePlate, key: 'licensePlate' },
-                                    { label: 'Engine Family Name', value: originalAiData?.engineFamilyName, key: 'engineFamilyName' },
-                                    { label: 'Engine Manufacturer', value: originalAiData?.engineManufacturer, key: 'engineManufacturer' },
-                                    { label: 'Engine Model', value: originalAiData?.engineModel, key: 'engineModel' },
-                                    { label: 'Engine Year', value: originalAiData?.engineYear, key: 'engineYear' },
+                                    { label: 'VIN (Never I, O, Q)', ai: originalAiData?.vin, key: 'vin' },
+                                    { label: 'License Plate ID', ai: originalAiData?.licensePlate, key: 'licensePlate' },
+                                    { label: 'Engine Family ID', ai: originalAiData?.engineFamilyName, key: 'engineFamilyName' },
+                                    { label: 'Odometer (Mileage)', ai: originalAiData?.mileage, key: 'mileage' },
+                                    { label: 'Engine Manufacturer', ai: originalAiData?.engineManufacturer, key: 'engineManufacturer' },
+                                    { label: 'Engine Year', ai: originalAiData?.engineYear, key: 'engineYear' },
                                 ].map((item) => {
-                                    const isCorrected = editableData[item.key] !== originalAiData?.[item.key];
+                                    const isCorrected = editableData[item.key] && editableData[item.key] !== item.ai;
                                     return (
-                                        <div key={item.key} className="space-y-2 border-b border-white/5 pb-6">
+                                        <div key={item.key} className="space-y-3">
                                             <div className="flex justify-between items-center px-1">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.label}</label>
-                                                {isCorrected && <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest italic animate-pulse">Modified by human</span>}
+                                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{item.label}</label>
+                                                {isCorrected && <span className="text-[7px] font-black text-orange-500 uppercase italic animate-pulse">Field Corrected</span>}
                                             </div>
-                                            <div className="flex flex-col sm:flex-row gap-3">
-                                                {/* AI Original Display */}
-                                                <div className="flex-1 bg-black/40 p-4 rounded-2xl border border-white/10 flex flex-col justify-center min-h-[64px] opacity-60">
-                                                    <span className="text-[8px] font-bold text-gray-600 uppercase mb-1">AI RAW</span>
-                                                    <span className="text-sm font-black text-gray-400 uppercase tracking-tight truncate">
-                                                        {item.value || 'NOT DETECTED'}
-                                                    </span>
-                                                </div>
-                                                {/* Human Adjustment Input */}
-                                                <div className="flex-1">
-                                                    <input 
-                                                        value={editableData[item.key] || ''}
-                                                        onChange={(e) => handleFieldChange(item.key, e.target.value.toUpperCase())}
-                                                        placeholder={`Enter verified ${item.label.toLowerCase()}`}
-                                                        className={`w-full h-[64px] bg-white/5 border rounded-2xl px-6 text-sm font-bold placeholder:text-gray-700 outline-none transition-all uppercase ${isCorrected ? 'border-orange-500/40 text-orange-400' : 'border-white/20 text-green-400'}`}
-                                                    />
-                                                </div>
+                                            <div className="relative">
+                                                <input 
+                                                    value={editableData[item.key] || ''}
+                                                    onChange={(e) => handleFieldChange(item.key, e.target.value.toUpperCase())}
+                                                    placeholder="Manual input..."
+                                                    className={`w-full bg-black/60 border rounded-2xl py-6 px-8 text-lg font-black tracking-tight outline-none transition-all uppercase shadow-inner ${isCorrected ? 'border-orange-500/40 text-orange-400' : 'border-white/10 text-white focus:border-blue-500'}`}
+                                                />
                                             </div>
+                                            {item.ai && (
+                                                <div className="flex items-center gap-2 ml-4">
+                                                    <span className="text-[8px] font-black text-gray-700 uppercase">AI RAW:</span>
+                                                    <span className="text-[8px] font-black text-gray-600 italic truncate max-w-[200px]">{item.ai}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
+                            </div>
 
-                                <div className="pt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="pt-8 space-y-4">
+                                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest text-center italic">Component Status (Emission Control)</p>
+                                <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
                                     {['EGR', 'SCR', 'TWC', 'NOx', 'SC/TC', 'ECM/PCM', 'DPF'].map(comp => (
-                                        <div key={comp} className="bg-black/40 p-5 rounded-2xl border border-white/5 text-center space-y-1">
-                                            <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">{comp}</p>
+                                        <div key={comp} className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center active:scale-95 transition-all cursor-pointer hover:bg-green-500/5 group">
+                                            <p className="text-[8px] font-black text-gray-600 uppercase mb-1 group-hover:text-green-500 transition-colors">{comp}</p>
                                             <p className="text-xl font-black text-green-500">P</p>
                                         </div>
                                     ))}
@@ -316,12 +334,13 @@ DPF: ${editableData.dpf || 'P'}
                             </div>
                         </div>
 
-                        <div className="flex gap-4">
-                            <button onClick={() => { triggerHaptic('light'); setStep('mode'); }} className="flex-1 py-7 bg-white/5 text-white font-black rounded-[2rem] uppercase tracking-widest text-[10px] border border-white/10 italic">Retry Scan</button>
-                            <button onClick={handleFinalSubmit} className="flex-[2] py-7 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-[11px] shadow-2xl italic">Finalize Verified Record</button>
+                        <div className="flex flex-col sm:flex-row gap-4 px-4">
+                            <button onClick={() => { triggerHaptic('light'); setStep('mode'); }} className="flex-1 py-7 bg-white/5 text-white font-black rounded-[2rem] uppercase tracking-widest text-[10px] border border-white/10 italic active-haptic">Restart</button>
+                            <button onClick={handleFinalSubmit} className="flex-[2] py-7 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-[11px] shadow-2xl italic active-haptic">Sync To Registry</button>
                         </div>
                     </div>
                 )}
+                <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileUpload} />
             </div>
         );
     }
@@ -329,19 +348,14 @@ DPF: ${editableData.dpf || 'P'}
     if (step === 'success') {
         return (
             <div className="max-w-md mx-auto py-20 text-center space-y-10 animate-in zoom-in duration-500">
-                <div className="w-24 h-24 bg-green-500 rounded-full mx-auto flex items-center justify-center text-white text-4xl shadow-[0_20px_50px_rgba(34,197,94,0.3)]">✓</div>
+                <div className="w-24 h-24 bg-green-500 rounded-full mx-auto flex items-center justify-center text-white text-4xl shadow-[0_20px_50px_rgba(34,197,94,0.4)]">✓</div>
                 <div className="space-y-4">
-                    <h2 className="text-4xl font-black italic tracking-tighter uppercase text-white leading-tight">Intake Complete</h2>
-                    <p className="text-[14px] text-blue-400 font-black uppercase tracking-widest px-8 leading-relaxed italic">
-                        Human-Verified record synced to the NorCal Cloud. Learning data captured.
+                    <h2 className="text-4xl font-black italic tracking-tighter uppercase text-white leading-tight">Sync Complete</h2>
+                    <p className="text-[12px] text-blue-400 font-black uppercase tracking-widest px-8 leading-relaxed italic">
+                        Session {sessionId} has been archived in the NorCal Cloud. Verification data sent to Bryan.
                     </p>
-                    <div className="pt-4 space-y-4">
-                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Files Dispatched To:</p>
-                        <p className="text-[10px] font-black text-white bg-white/10 inline-block px-4 py-2 rounded-full uppercase tracking-widest">Folder-Dr. Gillis (Google Drive)</p>
-                        <button onClick={handleTextBryan} className="block mx-auto px-6 py-3 bg-green-600/20 text-green-500 rounded-full text-[10px] font-black uppercase tracking-widest italic border border-green-500/20">Text Bryan Directly</button>
-                    </div>
                 </div>
-                <button onClick={() => { triggerHaptic('light'); onComplete(); }} className="bg-white text-carb-navy px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest italic active-haptic shadow-xl">Back to HUB</button>
+                <button onClick={() => { triggerHaptic('light'); onComplete(); }} className="bg-white text-black px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest italic active-haptic shadow-xl hover:scale-105 transition-transform">HUB Command</button>
             </div>
         );
     }
