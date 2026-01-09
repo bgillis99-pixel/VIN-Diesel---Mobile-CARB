@@ -5,9 +5,7 @@ import { signInWithGoogle, logoutUser } from '../services/firebase';
 
 interface Props {
   user: User | null;
-  // Fix: Made optional as they are not used in current implementation
   onLogin?: (email: string) => void;
-  // Fix: Made optional as they are not used in current implementation
   onRegister?: (email: string) => void;
   onLogout: () => void;
   onAdminAccess?: () => void;
@@ -47,7 +45,9 @@ const ProfileView: React.FC<Props> = ({ user, onLogout, onAdminAccess, isOnline 
     return items;
   }, [user, search, sort]);
 
-  if (!user) {
+  // If user is null, we show the login screen.
+  // Note: In App.tsx we now set a "Guest Operator" user if not logged in to show local history.
+  if (!user || user.email === 'Guest Operator') {
     return (
       <div className="max-w-md mx-auto space-y-10 py-12 px-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
         <div className="text-center space-y-4">
@@ -55,7 +55,7 @@ const ProfileView: React.FC<Props> = ({ user, onLogout, onAdminAccess, isOnline 
             <p className="text-[10px] text-carb-accent font-black uppercase tracking-[0.4em] italic">Access Fleet Intelligence</p>
         </div>
 
-        <div className="glass p-12 rounded-[3.5rem] border border-white/5 space-y-10 shadow-2xl">
+        <div className="glass-card p-12 rounded-[3.5rem] border border-white/5 space-y-10 shadow-2xl">
             <div className="space-y-4 text-center">
                 <div className="w-20 h-20 bg-carb-accent/10 rounded-full mx-auto flex items-center justify-center text-4xl border border-carb-accent/20">📡</div>
                 <p className="text-xs text-gray-500 font-medium px-6 leading-relaxed">
@@ -74,13 +74,33 @@ const ProfileView: React.FC<Props> = ({ user, onLogout, onAdminAccess, isOnline 
                 <button onClick={handlePartnerAccess} className="text-[9px] text-gray-700 font-black uppercase tracking-[0.4em] hover:text-white transition-colors italic">Partner Portal 🔒</button>
             </div>
         </div>
+
+        {/* Show activity log even for guests if they have local history */}
+        {user && user.history.length > 0 && (
+           <div className="glass-card rounded-[3.5rem] border border-white/5 overflow-hidden shadow-2xl mt-8">
+              <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+                  <h4 className="text-[10px] font-black text-white uppercase tracking-[0.4em] italic">Local Activity Log</h4>
+                  <div className="bg-carb-accent/10 text-carb-accent px-3 py-1 rounded-full text-[9px] font-black uppercase border border-carb-accent/20 italic">{user.history.length} Logs</div>
+              </div>
+              <div className="divide-y divide-white/5">
+                  {filteredHistory.map((item: HistoryItem) => (
+                      <div key={item.id} className="p-6 hover:bg-white/5 transition-colors flex justify-between items-center">
+                          <div className="space-y-1">
+                              <p className="font-mono text-xs font-black text-white tracking-widest">{item.value}</p>
+                              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{new Date(item.timestamp).toLocaleDateString()}</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+           </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="max-w-md mx-auto space-y-10 pb-32 animate-in fade-in duration-700">
-      <div className="glass p-8 rounded-[3.5rem] border border-white/10 flex justify-between items-center shadow-2xl relative overflow-hidden">
+      <div className="glass-card p-8 rounded-[3.5rem] border border-white/10 flex justify-between items-center shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 bg-carb-accent/20 text-carb-accent px-4 py-1 rounded-bl-2xl text-[8px] font-black uppercase tracking-widest italic border-b border-l border-white/5">Authenticated</div>
         <div className="space-y-1">
             <h3 className="text-xl font-black tracking-tighter text-white italic truncate max-w-[180px] uppercase">{user.email.split('@')[0]}</h3>
@@ -90,7 +110,7 @@ const ProfileView: React.FC<Props> = ({ user, onLogout, onAdminAccess, isOnline 
       </div>
 
       {/* SETTINGS CARD */}
-      <div className="glass p-8 rounded-[3.5rem] border border-white/5 space-y-8">
+      <div className="glass-card p-8 rounded-[3.5rem] border border-white/5 space-y-8">
         <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] italic mb-2">Protocol Settings</h4>
         
         <div className="flex items-center justify-between p-4 rounded-3xl bg-white/5 border border-white/5">
@@ -117,7 +137,7 @@ const ProfileView: React.FC<Props> = ({ user, onLogout, onAdminAccess, isOnline 
       </div>
 
       {/* CLOUD HISTORY CARD */}
-      <div className="glass rounded-[3.5rem] border border-white/5 overflow-hidden shadow-2xl">
+      <div className="glass-card rounded-[3.5rem] border border-white/5 overflow-hidden shadow-2xl">
         <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
             <h4 className="text-[10px] font-black text-white uppercase tracking-[0.4em] italic">Activity Log</h4>
             <div className="bg-carb-accent/10 text-carb-accent px-3 py-1 rounded-full text-[9px] font-black uppercase border border-carb-accent/20 italic">{user.history.length} Logs</div>

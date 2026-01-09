@@ -1,10 +1,11 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { sendMessage, speakText } from '../services/geminiService';
 import { Message } from '../types';
 
 const ChatAssistant: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'init', role: 'model', text: 'Hello! I am your CARB CTC Assistant. How can I help you navigate the new regulations today?', timestamp: Date.now() }
+    { id: 'init', role: 'model', text: 'Operational Command Active. I can analyze your local fleet queue, check compliance status, or explain the new semi-annual testing windows. How can I assist your deployment today?', timestamp: Date.now() }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,14 +32,28 @@ const ChatAssistant: React.FC = () => {
     setLoading(true);
 
     try {
+      // COMMAND CONTEXT: Inject local system state for "Command Center" awareness
+      const localCrm = localStorage.getItem('crm_clients') || '[]';
+      const localIntakes = localStorage.getItem('inbound_intakes') || '[]';
+      const commandContext = `
+        COMMAND DATA SYNC:
+        Active CRM Clients: ${localCrm}
+        Recent Intakes: ${localIntakes}
+        Current Operator Location: ${location ? `${location.lat}, ${location.lng}` : 'Unknown'}
+      `.trim();
+
       const history = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
-      const response = await sendMessage(input, history, location);
+      
+      // Inject context into the first message for Gemini to have "Command awareness"
+      const prompt = `[CONTEXT: ${commandContext}] ${input}`;
+      
+      const response = await sendMessage(prompt, history, location);
       setMessages(prev => [...prev, {
         id: Date.now().toString(), role: 'model', text: response.text, timestamp: Date.now(), groundingUrls: response.groundingUrls
       }]);
       if (voiceEnabled && response.text) speakText(response.text);
     } catch (error) {
-      setMessages(prev => [...prev, { id: 'err', role: 'model', text: "Service temporarily unavailable. Please try again.", timestamp: Date.now() }]);
+      setMessages(prev => [...prev, { id: 'err', role: 'model', text: "Command Link interrupted. Please retry.", timestamp: Date.now() }]);
     } finally { setLoading(false); }
   };
 
@@ -46,10 +61,10 @@ const ChatAssistant: React.FC = () => {
     <div className="flex flex-col h-[calc(100dvh-220px)] animate-in fade-in duration-500">
       <div className="bg-slate-800/80 p-5 rounded-t-[2.5rem] flex justify-between items-center shadow-xl border-x border-t border-white/5 backdrop-blur-lg">
           <div className="flex items-center gap-3">
-              <span className="text-xl">🤖</span>
+              <span className="text-xl">🛡️</span>
               <div>
-                  <h2 className="text-xs font-black text-slate-100 uppercase tracking-widest italic leading-tight">CTC ASSISTANT</h2>
-                  <p className="text-[8px] font-bold text-carb-accent uppercase tracking-[0.2em]">{location ? '📍 Grounding Active' : 'Regulations Expert'}</p>
+                  <h2 className="text-xs font-black text-slate-100 uppercase tracking-widest italic leading-tight">OPS COMMAND AI</h2>
+                  <p className="text-[8px] font-bold text-carb-accent uppercase tracking-[0.2em]">Full Data Sync Active</p>
               </div>
           </div>
           <button onClick={() => setVoiceEnabled(!voiceEnabled)} className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${voiceEnabled ? 'bg-carb-accent text-slate-900 shadow-lg' : 'bg-slate-900 text-slate-500'}`}>
@@ -87,7 +102,7 @@ const ChatAssistant: React.FC = () => {
           <div className="flex gap-2 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5">
               <input 
                 value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask about quarterly deadlines..."
+                placeholder="Ask about your fleet status..."
                 className="flex-1 bg-transparent py-3 px-4 text-sm font-medium text-slate-100 outline-none placeholder:text-slate-700"
               />
               <button onClick={handleSend} className="bg-carb-accent text-slate-950 px-5 rounded-xl active-haptic font-black text-lg transition-colors hover:bg-carb-accent/80">➔</button>

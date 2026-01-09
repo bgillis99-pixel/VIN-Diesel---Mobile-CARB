@@ -21,7 +21,7 @@ interface Props {
   onNavigateTools: () => void;
 }
 
-const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
+const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat, onAddToHistory }) => {
   const [inputVal, setInputVal] = useState('');
   const [plateVal, setPlateVal] = useState('');
   const [zipInput, setZipInput] = useState('');
@@ -123,6 +123,9 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
     const isCompliant = !isNaN(parseInt(inputVal.slice(-1)));
     setShowResultScreen(isCompliant ? 'compliant' : 'non-compliant');
     triggerHaptic(isCompliant ? 'success' : 'error');
+    
+    // PERSISTENCE: Save to history when checked
+    onAddToHistory(inputVal, 'VIN');
   };
 
   return (
