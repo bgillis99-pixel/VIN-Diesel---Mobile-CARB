@@ -28,24 +28,17 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [mode, setMode] = useState<IntakeMode | null>(null);
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<'name' | 'mode' | 'extraction' | 'success'>('name');
-    const [extractedResult, setExtractedResult] = useState<ExtractedTruckData | null>(null);
+    const [originalAiData, setOriginalAiData] = useState<any>(null);
     const [editableData, setEditableData] = useState<any>({});
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        if (extractedResult) {
-            setEditableData({ ...extractedResult });
-        }
-    }, [extractedResult]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files: File[] = Array.from(e.target.files || []);
         if (files.length === 0) return;
         
         setSelectedFiles(files);
-        // Create previews
         const urls = files.map(file => URL.createObjectURL(file));
         setPreviewUrls(urls);
         
@@ -67,12 +60,16 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 data = await extractEngineTagData(files[0]);
             }
 
-            setExtractedResult(data);
+            setOriginalAiData({ ...data }); // Capture for learning
+            setEditableData({ ...data });
             triggerHaptic('success');
             trackEvent('intake_extraction_complete', { mode, fileCount: files.length });
-        } catch (err) {
+        } catch (err: any) {
             triggerHaptic('error');
-            alert("AI Sync Error. Please try with higher resolution photos.");
+            const message = err.message?.includes('API Key is missing') 
+                ? "SYSTEM ERROR: Gemini API Key not found. Please contact admin."
+                : "AI Sync Error. Please try with higher resolution photos.";
+            alert(message);
             setStep('mode');
         } finally {
             setLoading(false);
@@ -94,6 +91,7 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 timestamp: Date.now(),
                 photos: { vin: null, plate: null, odometer: null, ecl: null, engine: null, exterior: null, registration: null },
                 extractedData: editableData,
+                originalAiData: originalAiData, // Stored for tracking and learning
                 status: 'pending',
                 mode: mode || 'FULL_INTAKE'
             });
@@ -113,7 +111,7 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 year: nhtsaData?.year || editableData.engineYear || '',
                 timestamp: Date.now(),
                 status: 'New',
-                notes: `Batch Uploaded. Drive Path: Folder-Dr. Gillis`
+                notes: `Batch Uploaded. Tracking AI corrections active.`
             });
 
             triggerHaptic('success');
@@ -261,44 +259,51 @@ DPF: ${editableData.dpf || 'P'}
                                 </div>
                             </div>
 
-                            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl mb-4">
-                                <p className="text-[9px] font-black text-red-400 uppercase tracking-[0.2em] italic text-center">
-                                    CRITICAL: VIN must be exactly 17 characters. FOT Rules: No I, O, or Q allowed. 3x Check Accuracy!
+                            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl mb-4 text-center">
+                                <p className="text-[9px] font-black text-red-400 uppercase tracking-[0.2em] italic">
+                                    MANUAL OVERRIDE ACTIVE: Please adjust any fields incorrectly extracted by the AI. These adjustments help our system learn.
                                 </p>
                             </div>
 
                             <div className="grid grid-cols-1 gap-6">
                                 {[
-                                    { label: 'Inspection Date', value: editableData?.inspectionDate, key: 'inspectionDate' },
-                                    { label: 'VIN (Never I, O, Q)', value: editableData?.vin, key: 'vin' },
-                                    { label: 'Odometer (Mileage)', value: editableData?.mileage, key: 'mileage' },
-                                    { label: 'License Plate ID', value: editableData?.licensePlate, key: 'licensePlate' },
-                                    { label: 'Engine Family Name', value: editableData?.engineFamilyName, key: 'engineFamilyName' },
-                                    { label: 'Engine Manufacturer', value: editableData?.engineManufacturer, key: 'engineManufacturer' },
-                                    { label: 'Engine Model', value: editableData?.engineModel, key: 'engineModel' },
-                                    { label: 'Engine Year', value: editableData?.engineYear, key: 'engineYear' },
-                                ].map((item) => (
-                                    <div key={item.key} className="space-y-2 border-b border-white/5 pb-6">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{item.label}</label>
-                                        <div className="flex flex-col sm:flex-row gap-3">
-                                            {/* AI Result Box */}
-                                            <div className="flex-1 bg-black/40 p-4 rounded-2xl border border-white/10 flex items-center min-h-[64px]">
-                                                <span className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight truncate w-full">
-                                                    {item.value || 'N/A'}
-                                                </span>
+                                    { label: 'Inspection Date', value: originalAiData?.inspectionDate, key: 'inspectionDate' },
+                                    { label: 'VIN (Never I, O, Q)', value: originalAiData?.vin, key: 'vin' },
+                                    { label: 'Odometer (Mileage)', value: originalAiData?.mileage, key: 'mileage' },
+                                    { label: 'License Plate ID', value: originalAiData?.licensePlate, key: 'licensePlate' },
+                                    { label: 'Engine Family Name', value: originalAiData?.engineFamilyName, key: 'engineFamilyName' },
+                                    { label: 'Engine Manufacturer', value: originalAiData?.engineManufacturer, key: 'engineManufacturer' },
+                                    { label: 'Engine Model', value: originalAiData?.engineModel, key: 'engineModel' },
+                                    { label: 'Engine Year', value: originalAiData?.engineYear, key: 'engineYear' },
+                                ].map((item) => {
+                                    const isCorrected = editableData[item.key] !== originalAiData?.[item.key];
+                                    return (
+                                        <div key={item.key} className="space-y-2 border-b border-white/5 pb-6">
+                                            <div className="flex justify-between items-center px-1">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.label}</label>
+                                                {isCorrected && <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest italic animate-pulse">Modified by human</span>}
                                             </div>
-                                            {/* Correction Box */}
-                                            <div className="flex-1">
-                                                <input 
-                                                    value={editableData[item.key] || ''}
-                                                    onChange={(e) => handleFieldChange(item.key, e.target.value.toUpperCase())}
-                                                    placeholder={`Correction if needed...`}
-                                                    className="w-full h-[64px] bg-white/5 border border-white/20 rounded-2xl px-6 text-sm font-bold text-green-400 placeholder:text-gray-700 outline-none focus:border-green-500 transition-all uppercase"
-                                                />
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                {/* AI Original Display */}
+                                                <div className="flex-1 bg-black/40 p-4 rounded-2xl border border-white/10 flex flex-col justify-center min-h-[64px] opacity-60">
+                                                    <span className="text-[8px] font-bold text-gray-600 uppercase mb-1">AI RAW</span>
+                                                    <span className="text-sm font-black text-gray-400 uppercase tracking-tight truncate">
+                                                        {item.value || 'NOT DETECTED'}
+                                                    </span>
+                                                </div>
+                                                {/* Human Adjustment Input */}
+                                                <div className="flex-1">
+                                                    <input 
+                                                        value={editableData[item.key] || ''}
+                                                        onChange={(e) => handleFieldChange(item.key, e.target.value.toUpperCase())}
+                                                        placeholder={`Enter verified ${item.label.toLowerCase()}`}
+                                                        className={`w-full h-[64px] bg-white/5 border rounded-2xl px-6 text-sm font-bold placeholder:text-gray-700 outline-none transition-all uppercase ${isCorrected ? 'border-orange-500/40 text-orange-400' : 'border-white/20 text-green-400'}`}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
 
                                 <div className="pt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
                                     {['EGR', 'SCR', 'TWC', 'NOx', 'SC/TC', 'ECM/PCM', 'DPF'].map(comp => (
@@ -313,7 +318,7 @@ DPF: ${editableData.dpf || 'P'}
 
                         <div className="flex gap-4">
                             <button onClick={() => { triggerHaptic('light'); setStep('mode'); }} className="flex-1 py-7 bg-white/5 text-white font-black rounded-[2rem] uppercase tracking-widest text-[10px] border border-white/10 italic">Retry Scan</button>
-                            <button onClick={handleFinalSubmit} className="flex-[2] py-7 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-[11px] shadow-2xl italic">Confirm Final Record</button>
+                            <button onClick={handleFinalSubmit} className="flex-[2] py-7 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-[11px] shadow-2xl italic">Finalize Verified Record</button>
                         </div>
                     </div>
                 )}
@@ -328,7 +333,7 @@ DPF: ${editableData.dpf || 'P'}
                 <div className="space-y-4">
                     <h2 className="text-4xl font-black italic tracking-tighter uppercase text-white leading-tight">Intake Complete</h2>
                     <p className="text-[14px] text-blue-400 font-black uppercase tracking-widest px-8 leading-relaxed italic">
-                        Fleet Advisor will review the corrected records shortly.
+                        Human-Verified record synced to the NorCal Cloud. Learning data captured.
                     </p>
                     <div className="pt-4 space-y-4">
                         <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Files Dispatched To:</p>

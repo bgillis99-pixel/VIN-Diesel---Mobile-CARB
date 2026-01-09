@@ -50,7 +50,6 @@ export interface ExtractedTruckData {
   inspectionLocation?: string;
   confidence?: 'high' | 'medium' | 'low';
   documentType?: 'VIN_LABEL' | 'REGISTRATION' | 'ENGINE_TAG' | 'ODOMETER' | 'UNKNOWN';
-  // Template specific fields
   egr?: string;
   scr?: string;
   twc?: string;
@@ -74,6 +73,7 @@ export interface IntakeSubmission {
     registration: string | null;
   };
   extractedData: ExtractedTruckData | RegistrationData | EngineTagData | null;
+  originalAiData?: any; // To track AI vs Human for learning
   status: 'pending' | 'reviewed' | 'exported';
   mode: IntakeMode;
   driveDestination?: string;

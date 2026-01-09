@@ -3,7 +3,14 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { MODEL_NAMES } from "../constants";
 import { ExtractedTruckData, RegistrationData, EngineTagData } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Ensure the API Key is present. If missing, we still initialize but calls will fail.
+// This allows the app to load but catch the error specifically during the request.
+const getAiClient = () => {
+  if (!process.env.API_KEY) {
+    throw new Error("SYSTEM_ERROR: Gemini API Key is missing. Check your environment settings.");
+  }
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
 
 export const repairVin = (vin: string): string => {
     let repaired = vin.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -48,6 +55,7 @@ const fileToBase64 = (file: File | Blob): Promise<string> => {
 };
 
 export const processBatchIntake = async (files: File[]): Promise<ExtractedTruckData> => {
+    const ai = getAiClient();
     const parts = await Promise.all(files.map(async (file) => {
         const b64 = await fileToBase64(file);
         return { inlineData: { mimeType: file.type || 'image/jpeg', data: b64 } };
@@ -109,6 +117,7 @@ export const processBatchIntake = async (files: File[]): Promise<ExtractedTruckD
 };
 
 export const identifyAndExtractData = async (file: File | Blob): Promise<ExtractedTruckData> => {
+    const ai = getAiClient();
     const b64 = await fileToBase64(file);
     const prompt = `Analyze document and extract JSON. Types: VIN_LABEL, REGISTRATION, ENGINE_TAG, ODOMETER.`;
     try {
@@ -140,6 +149,7 @@ export const identifyAndExtractData = async (file: File | Blob): Promise<Extract
 };
 
 export const extractVinAndPlateFromImage = async (file: File | Blob) => {
+    const ai = getAiClient();
     const b64 = await fileToBase64(file);
     const response = await ai.models.generateContent({
         model: MODEL_NAMES.FLASH,
@@ -151,6 +161,7 @@ export const extractVinAndPlateFromImage = async (file: File | Blob) => {
 };
 
 export const extractRegistrationData = async (file: File | Blob): Promise<RegistrationData> => {
+    const ai = getAiClient();
     const b64 = await fileToBase64(file);
     const prompt = `Extract vehicle registration data from this image. Return JSON format.`;
     try {
@@ -184,6 +195,7 @@ export const extractRegistrationData = async (file: File | Blob): Promise<Regist
 };
 
 export const extractEngineTagData = async (file: File | Blob): Promise<EngineTagData> => {
+    const ai = getAiClient();
     const b64 = await fileToBase64(file);
     const prompt = `Extract engine tag/label data from this image. Return JSON format.`;
     try {
@@ -214,10 +226,11 @@ export const extractEngineTagData = async (file: File | Blob): Promise<EngineTag
 };
 
 export const sendMessage = async (text: string, history: any[], location?: { lat: number, lng: number }) => {
+    const ai = getAiClient();
     const tools: any[] = [{ googleSearch: {} }];
     let toolConfig: any = undefined;
 
-    const model = location ? 'gemini-2.5-flash' : MODEL_NAMES.FLASH;
+    const modelName = location ? 'gemini-3-pro-preview' : MODEL_NAMES.FLASH;
     
     if (location) {
         tools.push({ googleMaps: {} });
@@ -232,7 +245,7 @@ export const sendMessage = async (text: string, history: any[], location?: { lat
     }
 
     const response = await ai.models.generateContent({
-        model: model,
+        model: modelName,
         contents: [...history, { role: 'user', parts: [{ text }] }],
         config: { 
             systemInstruction: "You are VIN DIESEL AI, the ultimate proactive CARB Clean Truck Check (CTC) expert. Your mission is to fill the information gap left by the state. Be proactive: don't just answer questions, provide context on upcoming deadlines, hidden registry fees, and common testing pitfalls that the state doesn't clearly explain to fleet owners. Use Google Maps for testing locations and Google Search for the latest regulatory updates. Always aim to educate the user on the 'next step' they need to take for full compliance.",
@@ -256,6 +269,7 @@ export const sendMessage = async (text: string, history: any[], location?: { lat
 };
 
 export const speakText = async (text: string, voiceName: 'Kore' | 'Puck' | 'Zephyr' = 'Kore') => {
+    const ai = getAiClient();
     try {
         const response = await ai.models.generateContent({
             model: MODEL_NAMES.TTS,

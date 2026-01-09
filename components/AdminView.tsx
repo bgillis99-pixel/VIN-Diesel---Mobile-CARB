@@ -287,7 +287,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
           <div className="px-4 space-y-6 animate-in slide-in-from-bottom-4">
               <div className="text-center">
                   <h3 className="text-xl font-black italic uppercase text-white tracking-tighter">Field Submissions</h3>
-                  <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em]">Real-time OCR Stream</p>
+                  <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em]">Correction Audit Enabled</p>
               </div>
 
               {intakes.length === 0 ? (
@@ -298,34 +298,45 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                   <div className="space-y-4" role="list">
                       {intakes.map((intake) => {
                           const data = intake.extractedData as any;
+                          const aiData = intake.originalAiData as any;
+                          const hasCorrections = aiData && Object.keys(data).some(k => data[k] !== aiData[k]);
+                          
                           return (
                               <div key={intake.id} className="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 space-y-4 shadow-xl" role="listitem">
                                   <div className="flex justify-between items-start border-b border-white/5 pb-4">
                                       <div>
                                           <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest">{new Date(intake.timestamp).toLocaleTimeString()}</p>
                                           <h4 className="text-lg font-black text-white italic uppercase tracking-tighter">{intake.clientName}</h4>
-                                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">VIN: {data?.vin || 'MISSING'}</p>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">VIN: {data?.vin || 'MISSING'}</p>
+                                            {hasCorrections && <span className="px-2 py-0.5 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded text-[7px] font-black uppercase italic">AI CORRECTED</span>}
+                                          </div>
                                       </div>
-                                      <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-[8px] font-black uppercase tracking-widest italic">Dispatched</span>
+                                      <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-[8px] font-black uppercase tracking-widest italic">Verified</span>
                                   </div>
                                   
                                   <div className="grid grid-cols-2 gap-4">
-                                      <div className="space-y-1">
-                                          <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Engine Family</p>
-                                          <p className="text-[10px] font-black text-gray-300 truncate italic">{data?.engineFamilyName || 'N/A'}</p>
-                                      </div>
-                                      <div className="space-y-1">
-                                          <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Model Year</p>
-                                          <p className="text-[10px] font-black text-gray-300 italic">{data?.engineYear || 'N/A'}</p>
-                                      </div>
-                                      <div className="space-y-1">
-                                          <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Mileage</p>
-                                          <p className="text-[10px] font-black text-gray-300 italic">{data?.mileage || 'N/A'}</p>
-                                      </div>
-                                      <div className="space-y-1">
-                                          <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Plate ID</p>
-                                          <p className="text-[10px] font-black text-gray-300 italic">{data?.licensePlate || 'N/A'}</p>
-                                      </div>
+                                      {['vin', 'licensePlate', 'engineFamilyName', 'mileage'].map(field => {
+                                          const isCorrected = aiData && data[field] !== aiData[field];
+                                          return (
+                                              <div key={field} className="space-y-1">
+                                                  <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest">{field === 'licensePlate' ? 'Plate' : field.replace(/([A-Z])/g, ' $1')}</p>
+                                                  <div className="relative">
+                                                    <p className={`text-[10px] font-black italic truncate ${isCorrected ? 'text-orange-400 underline decoration-dotted' : 'text-gray-300'}`}>
+                                                        {data?.[field] || 'N/A'}
+                                                    </p>
+                                                    {isCorrected && (
+                                                        <div className="absolute -top-3 right-0 group">
+                                                            <span className="cursor-help text-[8px] font-black text-gray-700">?</span>
+                                                            <div className="hidden group-hover:block absolute bottom-full right-0 bg-black p-2 border border-white/10 rounded text-[8px] font-medium text-gray-500 whitespace-nowrap z-50">
+                                                                AI was: {aiData[field] || 'Empty'}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                  </div>
+                                              </div>
+                                          );
+                                      })}
                                   </div>
                               </div>
                           );
