@@ -110,8 +110,8 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
             {['DASHBOARD', 'INTAKES', 'CRM'].map(m => (
               <button 
                 key={m} 
-                onClick={() => setViewMode(m as any)}
-                className={`px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest italic border transition-all ${viewMode === m ? 'bg-carb-accent text-white border-carb-accent' : 'bg-white/5 text-slate-500 border-white/5'}`}
+                onClick={() => { triggerHaptic('light'); setViewMode(m as any); }}
+                className={`px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest italic border transition-all ${viewMode === m ? 'bg-carb-accent text-white border-carb-accent shadow-lg scale-105' : 'bg-white/5 text-slate-500 border-white/5'}`}
               >
                 {m}
               </button>
@@ -130,7 +130,7 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
        </div>
 
        {viewMode === 'DASHBOARD' && (
-          <div className="space-y-8">
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <div className="grid grid-cols-2 gap-4">
                 <StatBox label="Revenue MTD" value="$14,250" />
                 <StatBox label="Active Invoices" value="09" />
@@ -138,16 +138,28 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                 <StatBox label="Pending Intakes" value={intakes.length.toString()} />
              </div>
              
-             <div className="glass-card p-8 rounded-[3rem] space-y-4">
+             <div className="glass-card p-8 rounded-[3rem] space-y-6">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Live Operations Feed</h3>
                 <div className="divide-y divide-white/5">
-                   {intakes.slice(0, 3).map(i => (
-                     <div key={i.id} className="py-4 flex justify-between items-center">
-                        <div>
-                           <p className="text-sm font-black text-white italic">{i.clientName}</p>
-                           <p className="text-[8px] font-bold text-slate-600 uppercase">VIN: {(i.extractedData as any)?.vin || '---'}</p>
+                   {intakes.slice(0, 5).map(i => (
+                     <div key={i.id} className="py-4 flex justify-between items-center group">
+                        <div className="space-y-1">
+                           <p className="text-sm font-black text-white italic group-hover:text-carb-accent transition-colors">{i.clientName}</p>
+                           <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">
+                             VIN: {(i.extractedData as any)?.vin || '---'} | MTD: {new Date(i.timestamp).toLocaleDateString()}
+                           </p>
                         </div>
-                        <button onClick={() => onNavigateInvoice({ name: i.clientName, vin: (i.extractedData as any)?.vin })} className="bg-white/5 p-2 rounded-xl text-xs">📄</button>
+                        <button 
+                          onClick={() => {
+                            triggerHaptic('medium');
+                            onNavigateInvoice({ 
+                              clientName: i.clientName, 
+                              vin: (i.extractedData as any)?.vin,
+                              truckNumber: (i.extractedData as any)?.vin ? `T-${(i.extractedData as any).vin.slice(-4)}` : ''
+                            });
+                          }} 
+                          className="w-10 h-10 bg-white/5 flex items-center justify-center rounded-xl hover:bg-carb-accent transition-all text-xs"
+                        >📄</button>
                      </div>
                    ))}
                 </div>
@@ -156,21 +168,37 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
        )}
 
        {viewMode === 'INTAKES' && (
-         <div className="space-y-4">
-            {intakes.map(i => (
-              <div key={i.id} className="glass-card p-6 rounded-3xl flex justify-between items-center border border-white/5">
-                 <div>
-                    <p className="text-lg font-black italic text-white leading-none">{i.clientName}</p>
-                    <p className="text-[8px] text-carb-accent font-black uppercase mt-1">FIELD SESSION: {i.sessionId}</p>
-                 </div>
-                 <button onClick={() => onNavigateInvoice({ name: i.clientName, vin: (i.extractedData as any)?.vin })} className="bg-carb-accent text-slate-900 px-4 py-2 rounded-xl text-[9px] font-black uppercase italic">Invoice</button>
-              </div>
-            ))}
+         <div className="space-y-4 animate-in fade-in duration-500">
+            {intakes.length === 0 ? (
+               <div className="text-center py-20 bg-white/5 rounded-[3rem] border border-dashed border-white/10">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">No pending field sessions.</p>
+               </div>
+            ) : (
+              intakes.map(i => (
+                <div key={i.id} className="glass-card p-6 rounded-3xl flex justify-between items-center border border-white/5 hover:border-carb-accent/30 transition-all">
+                   <div className="space-y-1">
+                      <p className="text-lg font-black italic text-white leading-none">{i.clientName}</p>
+                      <p className="text-[8px] text-carb-accent font-black uppercase mt-1">FIELD SESSION: {i.sessionId}</p>
+                   </div>
+                   <button 
+                    onClick={() => {
+                      triggerHaptic('medium');
+                      onNavigateInvoice({ 
+                        clientName: i.clientName, 
+                        vin: (i.extractedData as any)?.vin,
+                        truckNumber: (i.extractedData as any)?.vin ? `T-${(i.extractedData as any).vin.slice(-4)}` : ''
+                      });
+                    }} 
+                    className="bg-carb-accent text-slate-900 px-6 py-3 rounded-2xl text-[9px] font-black uppercase italic shadow-lg active-haptic"
+                   >Invoice</button>
+                </div>
+              ))
+            )}
          </div>
        )}
 
        {viewMode === 'CRM' && (
-          <div className="space-y-4">
+          <div className="space-y-4 animate-in fade-in duration-500">
              {crmClients.length === 0 ? (
                <div className="text-center py-20 bg-white/5 rounded-[3rem] border border-dashed border-white/10">
                   <p className="text-2xl mb-2 opacity-50">📇</p>
@@ -178,12 +206,21 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                </div>
              ) : (
                crmClients.map(c => (
-                 <div key={c.id} className="glass-card p-6 rounded-3xl flex justify-between items-center border border-white/5">
-                    <div>
+                 <div key={c.id} className="glass-card p-6 rounded-3xl flex justify-between items-center border border-white/5 hover:bg-white/5 transition-colors">
+                    <div className="space-y-1">
                       <p className="text-lg font-black italic text-white leading-none">{c.clientName}</p>
-                      <p className="text-[8px] text-slate-500 font-black uppercase mt-1">{c.phone || c.email || 'NO CONTACT'}</p>
+                      <div className="flex items-center gap-3">
+                        <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">{c.phone || c.email || 'NO CONTACT'}</p>
+                        {c.vin && <p className="text-[8px] text-carb-accent font-black uppercase tracking-widest italic">VIN: •••{c.vin.slice(-4)}</p>}
+                      </div>
                     </div>
-                    <button onClick={() => onNavigateInvoice(c)} className="bg-carb-accent text-slate-900 px-4 py-2 rounded-xl text-[9px] font-black uppercase italic">Invoice</button>
+                    <button 
+                      onClick={() => {
+                        triggerHaptic('medium');
+                        onNavigateInvoice(c);
+                      }} 
+                      className="bg-carb-accent text-slate-900 px-6 py-3 rounded-2xl text-[9px] font-black uppercase italic shadow-lg active-haptic"
+                    >Invoice</button>
                  </div>
                ))
              )}

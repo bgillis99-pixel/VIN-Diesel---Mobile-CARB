@@ -2,10 +2,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { sendMessage, speakText } from '../services/geminiService';
 import { Message } from '../types';
+// Fixed missing import for triggerHaptic feedback
+import { triggerHaptic } from '../services/haptics';
 
 const ChatAssistant: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'init', role: 'model', text: 'Operational Command Active. I can analyze your local fleet queue, check compliance status, or explain the new semi-annual testing windows. How can I assist your deployment today?', timestamp: Date.now() }
+    { id: 'init', role: 'model', text: 'Operational Command Active. I can analyze your local fleet queue, check compliance status, generate professional invoices via Stripe, or explain the new semi-annual testing windows. How can I assist your deployment today?', timestamp: Date.now() }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,6 +42,11 @@ const ChatAssistant: React.FC = () => {
         Active CRM Clients: ${localCrm}
         Recent Intakes: ${localIntakes}
         Current Operator Location: ${location ? `${location.lat}, ${location.lng}` : 'Unknown'}
+        INVOICING FEATURES: 
+        - Stripe Integration for Settlement.
+        - Per-truck line items (OBD/OVI/OTHER).
+        - Wave Bookkeeping automation enabled via Make.ai.
+        - Supports PayPal, Venmo, Apple Pay, Google Pay links.
       `.trim();
 
       const history = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
@@ -67,7 +74,7 @@ const ChatAssistant: React.FC = () => {
                   <p className="text-[8px] font-bold text-carb-accent uppercase tracking-[0.2em]">Full Data Sync Active</p>
               </div>
           </div>
-          <button onClick={() => setVoiceEnabled(!voiceEnabled)} className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${voiceEnabled ? 'bg-carb-accent text-slate-900 shadow-lg' : 'bg-slate-900 text-slate-500'}`}>
+          <button onClick={() => { triggerHaptic('light'); setVoiceEnabled(!voiceEnabled); }} className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${voiceEnabled ? 'bg-carb-accent text-slate-900 shadow-lg' : 'bg-slate-900 text-slate-500'}`}>
             {voiceEnabled ? '🔊' : '🔇'}
           </button>
       </div>
@@ -102,7 +109,7 @@ const ChatAssistant: React.FC = () => {
           <div className="flex gap-2 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5">
               <input 
                 value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask about your fleet status..."
+                placeholder="Ask about your fleet status or billing..."
                 className="flex-1 bg-transparent py-3 px-4 text-sm font-medium text-slate-100 outline-none placeholder:text-slate-700"
               />
               <button onClick={handleSend} className="bg-carb-accent text-slate-950 px-5 rounded-xl active-haptic font-black text-lg transition-colors hover:bg-carb-accent/80">➔</button>
