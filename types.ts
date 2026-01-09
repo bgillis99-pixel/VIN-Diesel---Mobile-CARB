@@ -97,61 +97,6 @@ export interface CrmClient {
   notes?: string;
 }
 
-export interface Job {
-  id: string;
-  userId: string;
-  jobName: string;
-  jobDate: number;
-  location: {
-    lat: number;
-    lng: number;
-    address: string;
-  };
-  status: 'pending' | 'processing' | 'review' | 'approved' | 'exported';
-  vehicleCount: number;
-  createdAt: number;
-  exportedAt: number | null;
-  vehicles: Vehicle[];
-}
-
-export interface Vehicle {
-  id: string;
-  jobId: string;
-  vin: string;
-  vinValid: boolean;
-  nhtsaSuccess: boolean;
-  licensePlate: string;
-  companyName: string;
-  mileage: string;
-  eclCondition: "clear" | "faded" | "damaged" | "missing";
-  engineFamilyName: string;
-  engineManufacturer: string;
-  engineModel: string;
-  engineYear: string;
-  vehicleYear: string;
-  vehicleMake: string;
-  vehicleModel: string;
-  gvwr: string;
-  testResult: "pass" | "fail" | "pending";
-  testDate: number;
-  photoUrls: {
-    vinPlate?: string;
-    licensePlate?: string;
-    odometer?: string;
-    eclLabel?: string;
-    exterior?: string[];
-  };
-  confidence: "high" | "medium" | "low";
-}
-
-export interface Truck {
-  id: string;
-  vin: string;
-  nickname: string;
-  status: 'COMPLIANT' | 'NOT_COMPLIANT' | 'UNKNOWN';
-  lastChecked: number;
-}
-
 export interface HistoryItem {
   id: string;
   value: string;
@@ -166,6 +111,37 @@ export interface Message {
   text: string;
   timestamp: number;
   groundingUrls?: Array<{ uri: string; title: string }>;
+}
+
+export interface User {
+  email: string;
+  history: HistoryItem[];
+}
+
+// Added missing interfaces for fleet and invoice management
+export interface Truck {
+  id: string;
+  vin: string;
+  nickname: string;
+  status: 'COMPLIANT' | 'NOT_COMPLIANT' | 'UNKNOWN';
+  lastChecked: number;
+}
+
+export interface Job {
+  id: string;
+  userId: string;
+  clientName: string;
+  status: 'Pending' | 'Completed' | 'Canceled';
+  createdAt: number;
+}
+
+export interface Vehicle {
+  id: string;
+  vin: string;
+  make?: string;
+  model?: string;
+  year?: string;
+  plate?: string;
 }
 
 export interface Contact {
@@ -186,7 +162,7 @@ export interface TestAppointment {
   userVin: string;
   plate: string;
   comment: string;
-  result: 'PASS' | 'FAIL' | 'PENDING';
+  result: string;
   resultMessage: string;
   amount: number;
 }
@@ -194,12 +170,9 @@ export interface TestAppointment {
 export interface Invoice {
   id: string;
   date: string;
+  dueDate: string;
+  number: string;
   billTo: Contact;
   items: TestAppointment[];
   total: number;
-}
-
-export interface User {
-  email: string;
-  history: HistoryItem[];
 }

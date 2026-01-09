@@ -1,36 +1,17 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#020617">
+  <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Mobile CARB">
   
-  <title>Mobile CARB - Making CARB Suck Less</title>
+  <title>Mobile CARB - Compliance Made Clear</title>
 
-  <meta name="description" content="Making CARB Suck Less (Hopefully). Official Mobile Testing App for California CARB Compliance.">
-  
-  <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://carbcleantruckcheck.app/">
-  <meta property="og:title" content="Mobile CARB Testing">
-  <meta property="og:description" content="Making CARB Suck Less (Hopefully). Instant VIN verification and tester access.">
-  <meta property="og:image" content="https://carbcleantruckcheck.app/logo.svg">
-
-  <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:url" content="https://carbcleantruckcheck.app/">
-  <meta property="twitter:title" content="Mobile CARB Testing">
-  <meta property="twitter:description" content="Making CARB Suck Less (Hopefully).">
-  <meta property="twitter:image" content="https://carbcleantruckcheck.app/logo.svg">
-
-  <link rel="manifest" href="/manifest.json">
-  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-  <link rel="apple-touch-icon" href="/logo.svg">
+  <meta name="description" content="Official Mobile Testing App for California CARB Compliance. Streamlined and accessible.">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -40,22 +21,16 @@
         extend: {
           colors: {
             carb: {
-              navy: '#020617',
-              blue: '#0a192f',
-              accent: '#3b82f6',
-              green: '#39D353',
-              grey: '#1e293b'
+              navy: '#0f172a', 
+              slate: '#1e293b', 
+              accent: '#3b82f6', 
+              green: '#10b981', 
+              orange: '#f59e0b',
+              gray: '#64748b'
             }
           },
           animation: {
-            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'shimmer': 'shimmer 2s infinite'
-          },
-          keyframes: {
-            shimmer: {
-              '0%': { backgroundPosition: '-200% 0' },
-              '100%': { backgroundPosition: '200% 0' },
-            }
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
           }
         }
       }
@@ -70,45 +45,34 @@
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: #020617;
-      color: #ffffff;
+      background-color: #0f172a;
+      color: #f1f5f9;
       -webkit-tap-highlight-color: transparent;
       margin: 0;
       overflow-x: hidden;
-      letter-spacing: -0.01em;
     }
 
     .pb-safe { padding-bottom: calc(1rem + var(--safe-bottom)); }
     .pt-safe { padding-top: calc(1rem + var(--safe-top)); }
     
-    .glass-dark {
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
-    .metallic-silver {
-      background: linear-gradient(to bottom, #f3f4f6, #d1d5db, #9ca3af);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.8);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #020617;
-    }
-
-    .brushed-texture {
-      position: absolute;
-      inset: 0;
-      background-image: url('https://www.transparenttextures.com/patterns/brushed-alum.png');
-      opacity: 0.2;
-      pointer-events: none;
+    .metallic-btn {
+      background: linear-gradient(to bottom, #f1f5f9, #cbd5e1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.8);
+      color: #0f172a;
     }
 
     .vin-monospace {
-      font-family: 'Courier New', Courier, monospace;
-      font-weight: 900;
+      font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
     }
 
-    .active-haptic:active { transform: scale(0.96); transition: transform 0.1s; }
+    .active-haptic:active { transform: scale(0.98); transition: transform 0.1s; }
   </style>
 <script type="importmap">
 {

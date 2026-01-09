@@ -1,9 +1,10 @@
 
 export const COLORS = {
-  NAVY: '#003366',
-  GREEN: '#15803d',
-  WHITE: '#ffffff',
-  BG: '#f8f9fa'
+  NAVY: '#0f172a',
+  BLUE: '#3b82f6',
+  GREEN: '#22c55e',
+  WHITE: '#f8fafc',
+  BG: '#111827'
 };
 
 export const MODEL_NAMES = {

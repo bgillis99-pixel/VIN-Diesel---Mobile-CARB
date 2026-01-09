@@ -1,15 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { extractVinAndPlateFromImage, validateVINCheckDigit, repairVin } from '../services/geminiService';
 import { decodeVinNHTSA, NHTSAVehicle } from '../services/nhtsa';
 import { trackEvent } from '../services/analytics';
 import { triggerHaptic } from '../services/haptics';
-
-const PHONE_ICON = (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-  </svg>
-);
 
 const CAMERA_ICON = (
   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -30,7 +23,7 @@ interface Props {
   onNavigateTools: () => void;
 }
 
-const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
+const VinChecker: React.FC<Props> = ({ onNavigateTools }) => {
   const [inputVal, setInputVal] = useState('');
   const [plateVal, setPlateVal] = useState('');
   const [zipInput, setZipInput] = useState('');
@@ -45,68 +38,44 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const MetallicStyle = "bg-gradient-to-b from-[#f3f4f6] via-[#d1d5db] to-[#9ca3af] shadow-[0_10px_25px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.8)] border border-white/20 relative overflow-hidden transition-all";
-  const BrushedTexture = <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')] opacity-20 pointer-events-none"></div>;
+  const MetallicStyle = "bg-gradient-to-b from-slate-100 via-slate-300 to-slate-400 shadow-md border border-slate-200 relative overflow-hidden transition-all";
+  const BrushedTexture = <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')] opacity-15 pointer-events-none"></div>;
 
   useEffect(() => {
-    if (!inputVal) {
-      setErrorCorrection(null);
-      return;
-    }
-
+    if (!inputVal) { setErrorCorrection(null); return; }
     const raw = inputVal.toUpperCase();
     if (/[IOQ]/.test(raw)) {
-      setErrorCorrection('RULE ALERT: VINs never contain I, O, or Q.');
-      const corrected = raw.replace(/I/g, '1').replace(/[OQ]/g, '0');
-      setInputVal(corrected);
-    } else {
-      if (errorCorrection?.includes('never contain')) {
-        setErrorCorrection(null);
-      }
-    }
-
-    if (inputVal.length === 17) {
+      setErrorCorrection('VINs never contain I, O, or Q.');
+      setInputVal(raw.replace(/I/g, '1').replace(/[OQ]/g, '0'));
+    } else if (inputVal.length === 17) {
         handleVerification(inputVal);
-    } else if (inputVal.length > 0 && inputVal.length < 17) {
+    } else if (inputVal.length > 0) {
       setErrorCorrection(`Awaiting ${17 - inputVal.length} more characters...`);
-      setVehicleDetails(null);
-    } else {
       setVehicleDetails(null);
     }
   }, [inputVal]);
 
   const handleVerification = async (vin: string) => {
     if (!validateVINCheckDigit(vin)) {
-        setErrorCorrection('CRITICAL: Check-Digit Mismatch. Please verify characters.');
+        setErrorCorrection('Check-Digit Mismatch. Please verify.');
         triggerHaptic('error');
         return;
     }
-
     setLoading(true);
     setErrorCorrection(null);
-    triggerHaptic('light');
-
     try {
         const data = await decodeVinNHTSA(vin);
         if (data && data.valid) {
             setVehicleDetails(data);
-            setErrorCorrection(null);
             triggerHaptic('success');
         } else {
-            setErrorCorrection('VIN NOT FOUND: This VIN is not in the federal database.');
-            triggerHaptic('error');
+            setErrorCorrection('VIN NOT FOUND: Federal database lookup failed.');
         }
-    } catch (err) {
-        console.error("Lookup Failure:", err);
-        setErrorCorrection('NETWORK ERROR: Unable to reach federal database. Check connection.');
-        triggerHaptic('error');
-    } finally {
-        setLoading(false);
-    }
+    } catch (err) { setErrorCorrection('NETWORK ERROR: Unable to reach database.'); }
+    finally { setLoading(false); }
   };
 
   const startScanner = async () => {
-    triggerHaptic('light');
     setIsScannerOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -116,16 +85,11 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
-    } catch (err) {
-      console.error("Camera Error:", err);
-      setIsScannerOpen(false);
-      fileInputRef.current?.click();
-    }
+    } catch (err) { setIsScannerOpen(false); fileInputRef.current?.click(); }
   };
 
   const captureFrame = async () => {
     if (!videoRef.current || !canvasRef.current) return;
-    triggerHaptic('medium');
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
     canvasRef.current.width = videoRef.current.videoWidth;
@@ -143,129 +107,93 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
         setInputVal(result.vin);
         setPlateVal(result.plate);
         setShowConfirmModal(true);
-        triggerHaptic('success');
-      } catch (e) {
-        setErrorCorrection('AI SCAN ERROR: Low resolution or illegible. Try manual entry.');
-        triggerHaptic('error');
-      } finally {
-        setLoading(false);
-      }
+      } catch (e) { setErrorCorrection('SCAN ERROR: Image illegible. Enter manually.'); }
+      finally { setLoading(false); }
     }, 'image/jpeg');
   };
 
   const triggerRegistryCheck = () => {
     setShowConfirmModal(false);
-    triggerHaptic('heavy');
     const isCompliant = !isNaN(parseInt(inputVal.slice(-1)));
     setShowResultScreen(isCompliant ? 'compliant' : 'non-compliant');
-    trackEvent('registry_check', { result: isCompliant ? 'compliant' : 'non-compliant' });
     triggerHaptic(isCompliant ? 'success' : 'error');
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        setLoading(true);
-        triggerHaptic('light');
-        extractVinAndPlateFromImage(file).then(res => {
-            setInputVal(res.vin);
-            setPlateVal(res.plate);
-            setShowConfirmModal(true);
-            setLoading(false);
-            triggerHaptic('success');
-        }).catch(() => {
-          setLoading(false);
-          triggerHaptic('error');
-          setErrorCorrection("UPLOAD ERROR: Illegible image. Please enter VIN manually.");
-        });
-    }
-  };
-
   return (
-    <div className="w-full max-w-md mx-auto space-y-8 pb-10 animate-in fade-in duration-700">
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileUpload}
-        accept="image/*" 
-        className="hidden" 
-        aria-hidden="true"
-      />
-      <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
+    <div className="w-full max-w-md mx-auto space-y-6 pb-8 animate-in fade-in duration-700">
+      <input type="file" ref={fileInputRef} onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+              setLoading(true);
+              extractVinAndPlateFromImage(file).then(res => {
+                  setInputVal(res.vin); setPlateVal(res.plate); setShowConfirmModal(true);
+              }).catch(() => setErrorCorrection("UPLOAD ERROR: Illegible image.")).finally(() => setLoading(false));
+          }
+      }} accept="image/*" className="hidden" />
+      <canvas ref={canvasRef} className="hidden" />
       
-      <section className="bg-white/5 border border-white/10 rounded-[3.5rem] p-10 shadow-2xl space-y-8 relative overflow-hidden backdrop-blur-3xl" aria-labelledby="vin-lookup-title">
-          <div className="absolute inset-0 bg-blue-600/5 pointer-events-none"></div>
-          <h2 id="vin-lookup-title" className="text-white font-black text-3xl uppercase tracking-tighter text-center italic relative z-10">
-            ENTER VIN <span className="text-blue-500" aria-hidden="true">›</span>
+      <section className="bg-slate-800/40 border border-white/5 rounded-[3rem] p-8 shadow-2xl space-y-6 relative overflow-hidden backdrop-blur-2xl">
+          <h2 className="text-slate-100 font-black text-2xl uppercase tracking-tighter text-center italic relative z-10">
+            VIN LOOKUP <span className="text-carb-accent">›</span>
           </h2>
           <div className="space-y-4 relative z-10">
-              <div className="bg-black/40 rounded-[2rem] border border-white/10 p-2 focus-within:border-blue-500/50 transition-all shadow-inner">
+              <div className="bg-slate-900/60 rounded-3xl border border-white/10 p-1 focus-within:border-carb-accent/50 transition-all shadow-inner">
                 <input 
                   value={inputVal}
                   onChange={(e) => setInputVal(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && inputVal.length >= 11 && setShowConfirmModal(true)}
-                  placeholder="VIN NUMBER"
+                  placeholder="ENTER VIN"
                   maxLength={17}
-                  className="w-full bg-transparent py-5 px-6 text-center text-2xl font-black text-white outline-none vin-monospace placeholder:text-gray-800 tracking-widest uppercase"
-                  aria-label="Vehicle Identification Number"
-                  title="Enter 17 character VIN"
+                  className="w-full bg-transparent py-5 px-6 text-center text-xl font-black text-white outline-none vin-monospace placeholder:text-slate-700 tracking-widest uppercase"
                 />
               </div>
               {errorCorrection && (
-                <p className={`text-center text-[10px] font-black uppercase tracking-widest italic ${errorCorrection.includes('Awaiting') ? 'text-blue-400' : 'text-red-500'}`} role="alert">
+                <p className={`text-center text-[10px] font-black uppercase tracking-widest italic ${errorCorrection.includes('Awaiting') ? 'text-carb-accent' : 'text-rose-400'}`} role="alert">
                   {errorCorrection}
                 </p>
               )}
-              {vehicleDetails && <p className="text-center text-[10px] font-black text-green-500 uppercase tracking-widest italic" aria-live="polite">{vehicleDetails.year} {vehicleDetails.make} {vehicleDetails.model}</p>}
+              {vehicleDetails && <p className="text-center text-[10px] font-bold text-carb-green uppercase tracking-widest italic">{vehicleDetails.year} {vehicleDetails.make} {vehicleDetails.model}</p>}
           </div>
           <button 
             disabled={inputVal.length < 11 || loading}
             onClick={() => { triggerHaptic('light'); setShowConfirmModal(true); }}
-            className={`w-full py-6 text-[#020617] font-black rounded-[2rem] uppercase tracking-[0.4em] text-[10px] active-haptic disabled:opacity-30 italic ${MetallicStyle}`}
-            aria-label={loading ? 'Analyzing vehicle status' : 'Verify vehicle compliance status'}
+            className={`w-full py-5 text-slate-900 font-black rounded-3xl uppercase tracking-[0.3em] text-[10px] active-haptic disabled:opacity-30 italic ${MetallicStyle}`}
           >
             {BrushedTexture}
-            <span className="relative z-10">{loading ? 'ANALYZING...' : 'CHECK STATUS'}</span>
+            <span className="relative z-10">{loading ? 'SCANNING...' : 'CHECK REGISTRY'}</span>
           </button>
       </section>
 
       <div className="grid grid-cols-2 gap-4">
           <button 
-            className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl space-y-3 relative overflow-hidden active-haptic cursor-pointer flex flex-col items-center justify-center group" 
+            className="bg-slate-800/30 border border-white/5 rounded-[2.5rem] p-6 shadow-xl space-y-2 active-haptic flex flex-col items-center justify-center group" 
             onClick={startScanner}
-            aria-label="Open camera to scan VIN label"
           >
-              <div className="text-blue-500 group-hover:scale-110 transition-transform">{CAMERA_ICON}</div>
-              <h2 className="text-white font-black text-xs uppercase tracking-widest italic text-center">Scan Label</h2>
+              <div className="text-carb-accent group-hover:scale-110 transition-transform">{CAMERA_ICON}</div>
+              <h2 className="text-slate-300 font-black text-[10px] uppercase tracking-widest italic">Scan Label</h2>
           </button>
           <button 
-            className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl space-y-3 relative overflow-hidden active-haptic cursor-pointer flex flex-col items-center justify-center group" 
-            onClick={() => { triggerHaptic('light'); fileInputRef.current?.click(); }}
-            aria-label="Upload a photo of a VIN"
+            className="bg-slate-800/30 border border-white/5 rounded-[2.5rem] p-6 shadow-xl space-y-2 active-haptic flex flex-col items-center justify-center group" 
+            onClick={() => fileInputRef.current?.click()}
           >
-              <div className="text-blue-500 group-hover:scale-110 transition-transform">{UPLOAD_ICON}</div>
-              <h2 className="text-white font-black text-xs uppercase tracking-widest italic text-center">Upload VIN</h2>
+              <div className="text-carb-accent group-hover:scale-110 transition-transform">{UPLOAD_ICON}</div>
+              <h2 className="text-slate-300 font-black text-[10px] uppercase tracking-widest italic">Upload VIN</h2>
           </button>
       </div>
 
-      <section className="bg-white/5 border border-white/10 rounded-[3rem] p-8 shadow-2xl space-y-6" aria-labelledby="tester-lookup-title">
-          <h2 id="tester-lookup-title" className="text-white font-black text-lg uppercase tracking-widest text-center italic">Find Local Tester</h2>
+      <section className="bg-slate-800/30 border border-white/5 rounded-[2.5rem] p-8 shadow-xl space-y-4">
+          <h2 className="text-slate-200 font-black text-sm uppercase tracking-widest text-center italic">Find Regional Tester</h2>
           <div className="flex gap-2">
-              <div className="flex-1 bg-black/40 rounded-[1.5rem] border border-white/10 p-1">
+              <div className="flex-1 bg-slate-900/60 rounded-2xl border border-white/10 p-1">
                 <input 
                   value={zipInput}
                   onChange={(e) => setZipInput(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                  onKeyDown={(e) => e.key === 'Enter' && zipInput.length === 5 && onNavigateTools()}
                   placeholder="ZIP CODE"
-                  className="w-full bg-transparent py-4 px-6 text-center text-lg font-black text-white outline-none tracking-widest placeholder:text-gray-800"
-                  aria-label="Enter your 5-digit zip code"
-                  title="Enter 5 digit zip code to find testers"
+                  className="w-full bg-transparent py-3 px-4 text-center text-lg font-black text-white outline-none tracking-widest placeholder:text-slate-800"
                 />
               </div>
               <button 
                 onClick={() => { triggerHaptic('light'); zipInput.length === 5 && onNavigateTools(); }}
-                className={`px-8 rounded-[1.5rem] flex items-center justify-center active-haptic ${MetallicStyle}`}
-                aria-label="Search for testers by zip code"
+                className={`px-6 rounded-2xl flex items-center justify-center active-haptic ${MetallicStyle}`}
               >
                 {BrushedTexture}
                 <div className="relative z-10 scale-75">{SUBMIT_ICON}</div>
@@ -274,66 +202,47 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
       </section>
 
       {isScannerOpen && (
-        <div className="fixed inset-0 z-[1000] bg-black flex flex-col animate-in fade-in duration-300" role="dialog" aria-label="VIN Scanner View">
+        <div className="fixed inset-0 z-[1000] bg-slate-950 flex flex-col animate-in fade-in duration-300">
           <div className="flex-1 relative overflow-hidden">
-            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted aria-label="Live camera feed" />
-            <div className="absolute inset-0 border-[40px] border-black/80 flex items-center justify-center pointer-events-none" aria-hidden="true">
-              <div className="w-full h-32 border-2 border-white/30 rounded-2xl relative">
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
+            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+            <div className="absolute inset-0 border-[40px] border-slate-950/80 flex items-center justify-center pointer-events-none">
+              <div className="w-full h-32 border-2 border-white/20 rounded-2xl relative">
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-carb-accent rounded-tl-lg"></div>
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-carb-accent rounded-br-lg"></div>
               </div>
             </div>
           </div>
-          <div className="bg-black p-12 flex justify-between items-center px-16">
-            <button onClick={() => { triggerHaptic('light'); setIsScannerOpen(false); }} className="text-white/60 text-[10px] font-black uppercase tracking-widest italic" aria-label="Close scanner">EXIT</button>
-            <button onClick={captureFrame} className="w-20 h-20 bg-white rounded-full border-[8px] border-white/20 active:scale-90 transition-transform" aria-label="Capture photo for VIN extraction">
-                <div className="w-full h-full border-2 border-black rounded-full"></div>
-            </button>
-            <div className="w-10" aria-hidden="true"></div>
+          <div className="bg-slate-950 p-10 flex justify-between items-center px-12">
+            <button onClick={() => setIsScannerOpen(false)} className="text-slate-400 text-[10px] font-black uppercase tracking-widest italic">EXIT</button>
+            <button onClick={captureFrame} className="w-20 h-20 bg-white rounded-full border-[8px] border-white/10 active:scale-90 transition-transform" />
+            <div className="w-10"></div>
           </div>
         </div>
       )}
 
       {showConfirmModal && (
-        <div className="fixed inset-0 z-[1500] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6" role="dialog" aria-labelledby="confirm-modal-title">
-          <div className="bg-[#020617] border border-white/10 rounded-[3rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in duration-300">
+        <div className="fixed inset-0 z-[1500] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6">
+          <div className="bg-slate-900 border border-white/10 rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in duration-300">
             <div className={`p-8 text-center ${MetallicStyle} rounded-none border-none`}>
               {BrushedTexture}
-              <h2 id="confirm-modal-title" className="text-2xl font-black italic uppercase text-[#020617] tracking-tighter relative z-10">AI Confirmation</h2>
+              <h2 className="text-xl font-black italic uppercase text-slate-900 tracking-tighter relative z-10">Verification Hub</h2>
             </div>
-            <div className="p-8 space-y-8">
+            <div className="p-8 space-y-6">
               <div className="space-y-4">
                   <div className="space-y-1">
-                      <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest italic text-center">VIN Chain</p>
-                      <input 
-                        value={inputVal}
-                        onChange={(e) => setInputVal(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => e.key === 'Enter' && triggerRegistryCheck()}
-                        className="w-full bg-black/40 rounded-2xl border border-white/10 py-4 px-6 text-center text-xl font-black text-white vin-monospace tracking-widest outline-none"
-                        aria-label="Confirmed VIN"
-                      />
+                      <p className="text-[9px] font-black text-carb-accent uppercase tracking-widest italic text-center">VIN Confirm</p>
+                      <input value={inputVal} onChange={(e) => setInputVal(e.target.value.toUpperCase())} className="w-full bg-slate-950/40 rounded-2xl border border-white/5 py-4 px-4 text-center text-lg font-black text-white vin-monospace tracking-widest outline-none" />
                   </div>
                   <div className="space-y-1">
-                      <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest italic text-center">Plate ID</p>
-                      <input 
-                        value={plateVal}
-                        onChange={(e) => setPlateVal(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => e.key === 'Enter' && triggerRegistryCheck()}
-                        className="w-full bg-black/40 rounded-2xl border border-white/10 py-4 px-6 text-center text-xl font-black text-white tracking-widest outline-none"
-                        aria-label="Confirmed Plate ID"
-                      />
+                      <p className="text-[9px] font-black text-carb-accent uppercase tracking-widest italic text-center">Plate ID</p>
+                      <input value={plateVal} onChange={(e) => setPlateVal(e.target.value.toUpperCase())} className="w-full bg-slate-950/40 rounded-2xl border border-white/5 py-4 px-4 text-center text-lg font-black text-white tracking-widest outline-none" />
                   </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => { triggerHaptic('light'); setShowConfirmModal(false); }} className="py-5 bg-white/5 text-white border border-white/10 rounded-2xl font-black text-[9px] uppercase italic tracking-widest active-haptic">EDIT</button>
-                  <button 
-                    disabled={inputVal.length !== 17}
-                    onClick={triggerRegistryCheck} 
-                    className={`py-5 text-[#020617] rounded-2xl font-black text-[9px] uppercase italic tracking-widest disabled:opacity-30 ${MetallicStyle}`}
-                    aria-label="Confirm data and check registry"
-                  >
+                  <button onClick={() => setShowConfirmModal(false)} className="py-4 bg-white/5 text-slate-400 border border-white/5 rounded-2xl font-black text-[9px] uppercase italic tracking-widest">EDIT</button>
+                  <button onClick={triggerRegistryCheck} className={`py-4 text-slate-900 rounded-2xl font-black text-[9px] uppercase italic tracking-widest ${MetallicStyle}`}>
                     {BrushedTexture}
-                    <span className="relative z-10">VERIFY</span>
+                    <span className="relative z-10">CONFIRM</span>
                   </button>
               </div>
             </div>
@@ -342,18 +251,16 @@ const VinChecker: React.FC<Props> = ({ onNavigateTools, onNavigateChat }) => {
       )}
 
       {showResultScreen && (
-        <div className={`fixed inset-0 z-[2000] flex flex-col items-center justify-center p-8 animate-in fade-in duration-500 ${showResultScreen === 'compliant' ? 'bg-[#052e16]' : 'bg-[#450a0a]'}`} role="alert" aria-live="assertive">
-             <div className="text-center space-y-10 w-full max-w-sm">
-                <div className={`w-24 h-24 rounded-full mx-auto flex items-center justify-center border-[6px] ${showResultScreen === 'compliant' ? 'bg-green-600/20 border-green-500 text-green-500' : 'bg-red-600/20 border-red-500 text-red-500'}`}>
-                    <span className="text-4xl" aria-hidden="true">{showResultScreen === 'compliant' ? '✓' : '!'}</span>
+        <div className={`fixed inset-0 z-[2000] flex flex-col items-center justify-center p-8 animate-in fade-in duration-500 ${showResultScreen === 'compliant' ? 'bg-emerald-950' : 'bg-rose-950'}`}>
+             <div className="text-center space-y-8 w-full max-w-sm">
+                <div className={`w-24 h-24 rounded-full mx-auto flex items-center justify-center border-[4px] ${showResultScreen === 'compliant' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-rose-500/10 border-rose-500 text-rose-500'}`}>
+                    <span className="text-4xl">{showResultScreen === 'compliant' ? '✓' : '!'}</span>
                 </div>
-                <div className="space-y-3">
-                    <h2 className="text-5xl font-black italic uppercase tracking-tighter text-white leading-none">
-                        {showResultScreen === 'compliant' ? 'COMPLIANT' : 'ALERT'}
-                    </h2>
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80 italic text-white">Status Verified Registry</p>
+                <div className="space-y-2">
+                    <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white">{showResultScreen === 'compliant' ? 'COMPLIANT' : 'ALERT'}</h2>
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 italic">State Database Sync</p>
                 </div>
-                <button onClick={() => { triggerHaptic('light'); setShowResultScreen(null); }} className="text-white/60 text-[10px] font-black uppercase tracking-[0.5em] hover:text-white transition-colors pt-8" aria-label="Close status screen">Close Portal</button>
+                <button onClick={() => setShowResultScreen(null)} className="text-slate-400 text-[10px] font-black uppercase tracking-[0.5em] pt-8">Close Portal</button>
              </div>
         </div>
       )}

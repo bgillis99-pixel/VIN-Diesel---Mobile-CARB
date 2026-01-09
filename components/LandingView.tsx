@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { triggerHaptic } from '../services/haptics';
 
@@ -46,19 +45,18 @@ const MSG_ICON = (
   </svg>
 );
 
-// App Logo Component
 const AppLogo = () => (
   <div className="flex flex-col items-center justify-center transform scale-90 sm:scale-100">
-    <h1 className="text-4xl sm:text-5xl font-black tracking-[0.2em] text-[#002D40] drop-shadow-lg" style={{ fontFamily: 'Arial, sans-serif' }}>
+    <h1 className="text-4xl sm:text-5xl font-black tracking-[0.2em] text-slate-100 drop-shadow-lg" style={{ fontFamily: 'Arial, sans-serif' }}>
       MOBILE
     </h1>
-    <h1 className="text-5xl sm:text-6xl font-black tracking-[0.2em] text-[#39D353] -mt-2 drop-shadow-lg" style={{ fontFamily: 'Arial, sans-serif' }}>
+    <h1 className="text-5xl sm:text-6xl font-black tracking-[0.2em] text-carb-green -mt-2 drop-shadow-lg" style={{ fontFamily: 'Arial, sans-serif' }}>
       CARB
     </h1>
     <div className="flex items-center gap-4 mt-2">
-      <div className="h-1 w-12 bg-[#39D353] rounded-full"></div>
-      <span className="text-lg sm:text-xl font-black text-gray-400 tracking-[0.3em] italic">TESTING CA</span>
-      <div className="h-1 w-12 bg-[#39D353] rounded-full"></div>
+      <div className="h-1 w-12 bg-carb-green/60 rounded-full"></div>
+      <span className="text-lg sm:text-xl font-black text-slate-400 tracking-[0.3em] italic">TESTING CA</span>
+      <div className="h-1 w-12 bg-carb-green/60 rounded-full"></div>
     </div>
   </div>
 );
@@ -75,41 +73,23 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
 
   const handleShare = async () => {
     const shareUrl = "https://carbcleantruckcheck.app";
-    const shareTitle = "Mobile CARB Testing";
-    const shareText = "Making CARB Suck Less (Hopefully). Check VINs, find testers, and get AI support.";
-
     if (navigator.share) {
       try {
         await navigator.share({
-          title: shareTitle,
-          text: shareText,
+          title: "Mobile CARB Testing",
+          text: "Compliance Made Clear. Check VINs and find testers instantly.",
           url: shareUrl
         });
-      } catch (err) {
-        console.error("Share failed:", err);
-      }
+      } catch (err) { console.error(err); }
     } else {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        alert("Link copied to clipboard!");
-      } catch (e) {
-        console.error("Clipboard failed");
-      }
+      navigator.clipboard.writeText(shareUrl);
+      alert("Link copied to clipboard!");
     }
   };
 
   const handleInstall = async () => {
-    if (installPrompt) {
-      installPrompt.prompt();
-    } else {
-      alert("To Install:\n\niOS: Tap 'Share' → 'Add to Home Screen'\n\nAndroid: Tap 'Menu' → 'Install App'");
-    }
-  };
-
-  const handleSupport = () => {
-    const userAgent = navigator.userAgent;
-    const body = `\n\n----------------\nDevice: ${userAgent}\nProblem Description: `;
-    window.location.href = `mailto:support@norcalcarb.com?subject=App Issue Report&body=${encodeURIComponent(body)}`;
+    if (installPrompt) { installPrompt.prompt(); } 
+    else { alert("To Install:\n\niOS: Tap 'Share' → 'Add to Home Screen'\n\nAndroid: Tap 'Menu' → 'Install App'"); }
   };
 
   const handleTextBryan = () => {
@@ -117,91 +97,92 @@ const LandingView: React.FC<Props> = ({ onLaunch, onNavigateTools, onNavigateInt
     window.location.href = "sms:19168904427&body=Hi Bryan, I have a question about the CARB app.";
   };
 
-  const MetallicStyle = "bg-gradient-to-b from-[#f3f4f6] via-[#d1d5db] to-[#9ca3af] shadow-[0_10px_25px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.8)] border border-white/20 relative overflow-hidden transition-all";
-  const BrushedTexture = <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')] opacity-20 pointer-events-none"></div>;
+  const MetallicStyle = "bg-gradient-to-b from-slate-100 via-slate-300 to-slate-400 shadow-[0_10px_25px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.8)] border border-slate-200 relative overflow-hidden transition-all";
+  const BrushedTexture = <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')] opacity-10 pointer-events-none"></div>;
 
-  const MainButton = ({ label, onClick }: { label: string, onClick: () => void }) => (
+  const MainButton = ({ label, onClick, accent = false }: { label: string, onClick: () => void, accent?: boolean }) => (
     <button 
         onClick={onClick}
-        className={`w-full py-7 text-[#020617] font-black rounded-[2rem] uppercase tracking-[0.4em] italic text-xs hover:scale-[1.02] active:scale-[0.98] ${MetallicStyle}`}
+        className={`w-full py-6 text-slate-900 font-black rounded-3xl uppercase tracking-[0.3em] italic text-xs hover:scale-[1.01] active:scale-[0.99] transition-transform ${accent ? 'ring-2 ring-carb-accent/50 ring-offset-4 ring-offset-slate-900' : ''} ${MetallicStyle}`}
     >
         {BrushedTexture}
-        <span className="relative z-10 drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)]">{label}</span>
+        <span className="relative z-10">{label}</span>
     </button>
   );
 
-  const ActionIcon = ({ icon, label, onClick, href, colorClass }: { icon: React.ReactNode, label: string, onClick?: () => void, href?: string, colorClass: string }) => {
-    const Component = href ? 'a' : 'button';
-    return (
-      <Component 
-        href={href} 
-        onClick={onClick} 
-        className="flex flex-col items-center gap-1 group transition-all active-haptic"
-      >
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${colorClass} group-hover:scale-105 ${MetallicStyle}`}>
-          {BrushedTexture}
-          <div className="relative z-10 scale-90">{icon}</div>
-        </div>
-        <span className="text-[6px] font-black uppercase tracking-[0.2em] text-gray-500 whitespace-nowrap">{label}</span>
-      </Component>
-    );
-  };
-
   return (
-    <main className="min-h-screen bg-[#020617] flex flex-col items-center justify-center px-6 py-4 text-center animate-in fade-in duration-1000 relative overflow-hidden">
+    <main className="min-h-screen bg-carb-navy flex flex-col items-center justify-center px-6 py-8 text-center animate-in fade-in duration-1000 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse-slow"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/5 rounded-full blur-[120px]"></div>
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-500/10 rounded-full blur-[120px] animate-pulse-slow"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[120px]"></div>
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]"></div>
       </div>
 
-      <div className="relative z-10 max-w-2xl w-full space-y-6">
+      <div className="relative z-10 max-w-lg w-full space-y-8">
         <div className="space-y-4">
-          <div className="flex justify-between items-center w-full max-w-lg mx-auto px-2">
-              <button onClick={onLaunch} className="text-[9px] font-black text-blue-500 uppercase tracking-widest italic">HUB</button>
-              <button onClick={onNavigateAdmin} className="text-[9px] font-black text-gray-700 uppercase tracking-widest italic">ADMIN OPS 🔒</button>
+          <div className="flex justify-between items-center w-full px-2 mb-2">
+              <button onClick={onLaunch} className="text-[10px] font-black text-carb-accent uppercase tracking-widest italic opacity-70 hover:opacity-100 transition-opacity">HUB</button>
+              <button onClick={onNavigateAdmin} className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic opacity-60 hover:opacity-100 transition-opacity">ADMIN OPS 🔒</button>
           </div>
-          <div className="mb-0">
-             <AppLogo />
-          </div>
+          <AppLogo />
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-[3rem] p-5 backdrop-blur-3xl shadow-[0_40px_80px_rgba(0,0,0,0.8)] space-y-3">
-            <MainButton label="Open VIN Checker" onClick={onLaunch} />
+        <div className="bg-slate-800/30 border border-white/5 rounded-[3rem] p-6 backdrop-blur-2xl shadow-2xl space-y-4">
+            <MainButton label="Open VIN Checker" onClick={onLaunch} accent />
             <MainButton label="Upload Photo / Doc" onClick={onNavigateIntake} />
             <MainButton label="Find A Tester" onClick={onNavigateTools} />
             <MainButton label="AI Assistant Q&A" onClick={onNavigateChat} />
         </div>
 
-        <div className="space-y-6 max-w-md mx-auto">
-            <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] space-y-6 backdrop-blur-3xl shadow-2xl relative">
-                <div className="flex justify-between items-center gap-2">
-                    <ActionIcon href="tel:9168904427" icon={PHONE_ICON} label="CALL" colorClass="text-green-800" />
-                    <ActionIcon onClick={handleTextBryan} icon={MSG_ICON} label="TEXT" colorClass="text-blue-900" />
-                    <ActionIcon onClick={handleInstall} icon={DOWNLOAD_ICON} label="INSTALL" colorClass="text-blue-800" />
-                    <ActionIcon onClick={handleShare} icon={SHARE_ICON} label="SHARE" colorClass="text-purple-800" />
-                    <ActionIcon onClick={handleSupport} icon={HELP_ICON} label="SUPPORT" colorClass="text-orange-800" />
-                    <ActionIcon onClick={onNavigateAdmin} icon={ADMIN_ICON} label="ADMIN" colorClass="text-red-900" />
+        <div className="space-y-6">
+            <div className="bg-slate-800/40 border border-white/5 p-6 rounded-[2.5rem] backdrop-blur-3xl shadow-xl">
+                <div className="grid grid-cols-3 gap-y-6 gap-x-2">
+                    <ActionIcon href="tel:9168904427" icon={PHONE_ICON} label="CALL" colorClass="text-slate-700" />
+                    <ActionIcon onClick={handleTextBryan} icon={MSG_ICON} label="TEXT" colorClass="text-slate-700" />
+                    <ActionIcon onClick={handleInstall} icon={DOWNLOAD_ICON} label="INSTALL" colorClass="text-slate-700" />
+                    <ActionIcon onClick={handleShare} icon={SHARE_ICON} label="SHARE" colorClass="text-slate-700" />
+                    <ActionIcon onClick={() => window.open('mailto:support@norcalcarb.com')} icon={HELP_ICON} label="SUPPORT" colorClass="text-slate-700" />
+                    <ActionIcon onClick={onNavigateAdmin} icon={ADMIN_ICON} label="ADMIN" colorClass="text-slate-700" />
                 </div>
             </div>
 
-            <div className="space-y-4 p-5 rounded-3xl bg-black/40 border border-white/5">
-              <p className="text-[7px] font-bold text-gray-600 uppercase tracking-[0.1em] leading-relaxed italic">
-                Verified Compliance Assistant is an independent regulatory tool. We are not affiliated with, endorsed by, or part of the California Air Resources Board (CARB).
+            <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5">
+              <p className="text-[8px] font-medium text-slate-500 uppercase tracking-wider leading-relaxed italic">
+                Independent regulatory tool. Not affiliated with or endorsed by the California Air Resources Board (CARB).
               </p>
             </div>
 
-            <div className="flex flex-col items-center gap-1 opacity-20">
-                <p className="text-[7px] font-black text-gray-600 uppercase tracking-[0.3em] italic">
+            <div className="flex flex-col items-center gap-1 opacity-30">
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] italic">
                     Regulatory Assistant v12.26
                 </p>
-                <p className="text-[7px] font-black text-gray-700 uppercase tracking-widest">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
                   © 2026 SILVERBACK GROUP LLC
                 </p>
             </div>
         </div>
       </div>
     </main>
+  );
+};
+
+const ActionIcon = ({ icon, label, onClick, href, colorClass }: { icon: React.ReactNode, label: string, onClick?: () => void, href?: string, colorClass: string }) => {
+  const Component = href ? 'a' : 'button';
+  const MetallicStyle = "bg-gradient-to-b from-slate-100 via-slate-200 to-slate-300 shadow-sm border border-slate-200 relative overflow-hidden transition-all";
+  const BrushedTexture = <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')] opacity-10 pointer-events-none"></div>;
+
+  return (
+    <Component 
+      href={href} 
+      onClick={onClick} 
+      className="flex flex-col items-center gap-1.5 group transition-all active-haptic"
+    >
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${colorClass} group-hover:scale-105 ${MetallicStyle}`}>
+        {BrushedTexture}
+        <div className="relative z-10 scale-90">{icon}</div>
+      </div>
+      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 whitespace-nowrap">{label}</span>
+    </Component>
   );
 };
 

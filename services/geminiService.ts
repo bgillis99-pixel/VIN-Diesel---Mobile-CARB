@@ -230,7 +230,8 @@ export const sendMessage = async (text: string, history: any[], location?: { lat
     const tools: any[] = [{ googleSearch: {} }];
     let toolConfig: any = undefined;
 
-    const modelName = location ? 'gemini-3-pro-preview' : MODEL_NAMES.FLASH;
+    // Use gemini-2.5-flash for maps grounding as per guidelines (only supported in 2.5 series)
+    const modelName = location ? 'gemini-2.5-flash' : MODEL_NAMES.FLASH;
     
     if (location) {
         tools.push({ googleMaps: {} });

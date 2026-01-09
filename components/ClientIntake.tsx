@@ -2,30 +2,41 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { processBatchIntake, identifyAndExtractData, extractVinAndPlateFromImage, extractRegistrationData, extractEngineTagData } from '../services/geminiService';
 import { saveIntakeSubmission, saveClientToCRM } from '../services/firebase';
-import { decodeVinNHTSA } from '../services/nhtsa';
-import { trackEvent } from '../services/analytics';
-import { IntakeMode, ExtractedTruckData } from '../types';
+import { IntakeMode } from '../types';
 import { triggerHaptic } from '../services/haptics';
 
-const ModeButton = ({ icon, label, onClick, sub }: { icon: string, label: string, onClick: () => void, sub: string }) => (
-    <button 
-        onClick={onClick}
-        className="w-full bg-white/5 border border-white/10 rounded-[2.5rem] p-8 flex items-center gap-6 hover:bg-white/10 transition-all active-haptic group text-left"
-    >
-        <span className="text-4xl group-hover:scale-110 transition-transform">{icon}</span>
-        <div className="flex flex-col gap-1">
-            <span className="text-sm font-black text-white uppercase italic tracking-tight">{label}</span>
-            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">{sub}</span>
+const FieldInput = ({ label, value, onChange, aiValue, fieldKey }: { 
+  label: string, value: string, onChange: (v: string) => void, aiValue?: string, fieldKey: string 
+}) => {
+  const isCorrected = aiValue && value !== aiValue;
+  return (
+    <div className="space-y-2 group">
+      <div className="flex justify-between items-center px-1">
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
+        {isCorrected && <span className="text-[7px] font-black text-carb-orange uppercase italic">Corrected</span>}
+      </div>
+      <div className="relative">
+        <input 
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          placeholder="Enter Manual..."
+          className={`w-full bg-slate-900/60 border rounded-2xl py-5 px-6 text-base font-bold tracking-tight outline-none transition-all uppercase shadow-inner ${isCorrected ? 'border-carb-orange/40 text-carb-orange' : 'border-white/5 text-white focus:border-carb-accent/40'}`}
+        />
+      </div>
+      {aiValue && (
+        <div className="flex items-center gap-2 ml-4">
+          <span className="text-[8px] font-bold text-slate-600 uppercase">AI Detected:</span>
+          <span className="text-[8px] font-bold text-slate-500 italic truncate max-w-[200px]">{aiValue}</span>
         </div>
-        <span className="ml-auto text-blue-500 font-thin text-2xl">›</span>
-    </button>
-);
+      )}
+    </div>
+  );
+};
 
 const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [sessionId, setSessionId] = useState('');
     const [clientName, setClientName] = useState('');
     const [clientPhone, setClientPhone] = useState('');
-    const [clientEmail, setClientEmail] = useState('');
     const [mode, setMode] = useState<IntakeMode | null>(null);
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<'name' | 'mode' | 'extraction' | 'success'>('name');
@@ -34,16 +45,16 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // PERSISTENCE: Recovery mechanism for field operations
+    // RESTORE Draft from LocalStorage
     useEffect(() => {
-        const savedSession = localStorage.getItem('carb_active_intake_session');
-        if (savedSession) {
-            const data = JSON.parse(savedSession);
+        const saved = localStorage.getItem('carb_field_draft');
+        if (saved) {
+            const data = JSON.parse(saved);
             setSessionId(data.sessionId);
             setClientName(data.clientName);
             setClientPhone(data.clientPhone);
-            setEditableData(data.editableData);
-            setOriginalAiData(data.originalAiData);
+            setEditableData(data.editableData || {});
+            setOriginalAiData(data.originalAiData || null);
             setPreviewUrls(data.previewUrls || []);
             if (data.previewUrls?.length > 0) setStep('extraction');
         } else {
@@ -51,10 +62,10 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         }
     }, []);
 
-    // PERSISTENCE: Save progress on every state change
+    // SAVE Draft continuously
     useEffect(() => {
         if (clientName || previewUrls.length > 0) {
-            localStorage.setItem('carb_active_intake_session', JSON.stringify({
+            localStorage.setItem('carb_field_draft', JSON.stringify({
                 sessionId, clientName, clientPhone, editableData, originalAiData, previewUrls
             }));
         }
@@ -85,22 +96,18 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 newData = await extractEngineTagData(files[0]);
             }
 
-            // MERGE Logic: Keep user corrections but fill empty gaps with new AI data
-            const mergedData = { ...editableData };
+            // MERGE: AI data into current record, keeping existing manual changes
+            const merged = { ...editableData };
             Object.keys(newData).forEach(key => {
-                if (!mergedData[key]) mergedData[key] = newData[key];
+                if (!merged[key]) merged[key] = newData[key];
             });
 
             setOriginalAiData(prev => ({ ...prev, ...newData }));
-            setEditableData(mergedData);
+            setEditableData(merged);
             triggerHaptic('success');
-            trackEvent('intake_extraction_updated', { sessionId, fileCount: previewUrls.length + files.length });
         } catch (err: any) {
             triggerHaptic('error');
-            const message = err.message?.includes('API Key is missing') 
-                ? "NO GEMINI KEY: Deployment environment missing API_KEY. Contact admin to add the key to Vercel/Firebase settings."
-                : "Sync Error: Area has low reception or AI is busy. Your photos are saved, try sync again later.";
-            alert(message);
+            alert(err.message?.includes('API Key') ? "Admin Error: Gemini Key Missing." : "Area Signal Weak. Photo stored locally.");
         } finally {
             setLoading(false);
         }
@@ -130,69 +137,64 @@ const ClientIntake: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
             await saveClientToCRM({
                 clientName,
                 phone: clientPhone,
-                email: clientEmail,
                 vin: editableData.vin || '',
                 plate: editableData.licensePlate || '',
                 timestamp: Date.now(),
-                status: 'New',
-                notes: `Session: ${sessionId}. AI Corrected: ${JSON.stringify(originalAiData !== editableData)}`
+                status: 'New'
             });
 
-            localStorage.removeItem('carb_active_intake_session');
+            localStorage.removeItem('carb_field_draft');
             triggerHaptic('success');
             setStep('success');
         } catch (e) {
             triggerHaptic('error');
-            alert("Record failed to sync. Photos are still saved on device.");
+            alert("Registry Sync Failed. Data remains on device.");
         } finally {
             setLoading(false);
         }
     };
 
-    const copyFullTemplate = () => {
-        if (!editableData) return;
-        triggerHaptic('medium');
+    const copyTemplate = () => {
+        triggerHaptic('light');
         const text = `
 SESSION: ${sessionId}
-DATE: ${editableData.inspectionDate || new Date().toLocaleDateString()}
-VIN: ${editableData.vin || 'MISSING'}
-PLATE: ${editableData.licensePlate || 'MISSING'}
-ODO: ${editableData.mileage || 'MISSING'}
-ENGINE ID: ${editableData.engineFamilyName || 'MISSING'}
-MAKE: ${editableData.engineManufacturer || 'MISSING'}
-YEAR: ${editableData.engineYear || 'MISSING'}
+CLIENT: ${clientName}
+VIN: ${editableData.vin || ''}
+ODO: ${editableData.mileage || ''}
+PLATE: ${editableData.licensePlate || ''}
+ENG FAMILY: ${editableData.engineFamilyName || ''}
+ENG YEAR: ${editableData.engineYear || ''}
         `.trim();
         navigator.clipboard.writeText(text);
-        alert("Compliance Record Copied");
+        alert("Record Copied");
     };
 
     if (step === 'name') {
         return (
-            <div className="max-w-md mx-auto py-6 animate-in fade-in duration-500">
-                <div className="glass p-10 rounded-[3.5rem] border border-blue-500/20 space-y-8">
+            <div className="max-w-md mx-auto py-12 animate-in fade-in duration-500">
+                <div className="glass-card p-10 rounded-[3rem] space-y-8">
                     <div className="text-center space-y-2">
-                        <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest italic">{sessionId}</p>
-                        <h2 className="text-3xl font-black italic tracking-tighter uppercase">Field Intake</h2>
-                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em]">Multi-Asset Link</p>
+                        <span className="text-[10px] font-black text-carb-accent uppercase tracking-widest">{sessionId}</span>
+                        <h2 className="text-3xl font-black italic uppercase text-white tracking-tighter">Field Portal</h2>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Identify & Archive Truck Assets</p>
                     </div>
-                    
-                    <div className="space-y-4 pt-4">
+                    <div className="space-y-4">
                         <input 
                             value={clientName}
                             onChange={e => setClientName(e.target.value)}
-                            placeholder="OPERATOR / COMPANY NAME"
-                            className="w-full bg-white/5 p-5 rounded-3xl border border-white/10 outline-none focus:border-blue-500 text-sm font-black text-white uppercase italic tracking-widest"
+                            placeholder="Operator / Company"
+                            className="w-full bg-slate-900/50 p-5 rounded-3xl border border-white/5 outline-none focus:border-carb-accent/40 text-sm font-bold text-white uppercase italic tracking-widest"
                         />
                         <input 
                             value={clientPhone}
                             onChange={e => setClientPhone(e.target.value)}
-                            placeholder="PRIMARY PHONE"
-                            className="w-full bg-white/5 p-5 rounded-3xl border border-white/10 outline-none focus:border-blue-500 text-sm font-bold text-white tracking-widest"
+                            placeholder="Contact Phone"
+                            className="w-full bg-slate-900/50 p-5 rounded-3xl border border-white/5 outline-none focus:border-carb-accent/40 text-sm font-bold text-white tracking-widest"
                         />
                         <button 
-                            onClick={() => { triggerHaptic('light'); setStep('mode'); }}
+                            onClick={() => setStep('mode')}
                             disabled={!clientName}
-                            className="w-full py-6 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-xs shadow-xl disabled:opacity-50 mt-4 active-haptic"
+                            className="w-full py-6 metallic-btn rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl disabled:opacity-30 active-haptic"
                         >
                             Select Documents
                         </button>
@@ -205,28 +207,29 @@ YEAR: ${editableData.engineYear || 'MISSING'}
     if (step === 'mode') {
         return (
             <div className="max-w-md mx-auto space-y-8 py-10 animate-in slide-in-from-bottom-10 duration-700">
-                <div className="text-center">
-                    <h2 className="text-xl font-black italic tracking-tighter uppercase text-gray-500">{clientName}</h2>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tight">Select Test Scope</h3>
+                <div className="text-center space-y-1">
+                    <h2 className="text-xl font-bold italic text-slate-400 uppercase tracking-tight">{clientName}</h2>
+                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Intake Method</h3>
                 </div>
                 <div className="space-y-4">
-                    <ModeButton 
-                        icon="📁" 
-                        label="Full Batch Sync" 
-                        sub="Upload VIN, Plate, ODO, and Tag together" 
-                        onClick={() => { triggerHaptic('light'); setMode('BATCH_MODE'); fileInputRef.current?.click(); }}
-                    />
-                    <div className="h-px bg-white/10 my-4 mx-8"></div>
-                    <ModeButton 
-                        icon="✨" 
-                        label="OVI Auto-Link" 
-                        sub="Single photo document detection" 
-                        onClick={() => { triggerHaptic('light'); setMode('AUTO_DETECT'); fileInputRef.current?.click(); }}
-                    />
+                    <button onClick={() => { setMode('BATCH_MODE'); fileInputRef.current?.click(); }} className="w-full glass-card p-8 flex items-center gap-6 rounded-[2.5rem] hover:bg-slate-800 transition-all active-haptic text-left">
+                        <span className="text-4xl">📁</span>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-black text-white uppercase italic">Batch Documents</span>
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Upload Multiple Label Photos</span>
+                        </div>
+                    </button>
+                    <button onClick={() => { setMode('AUTO_DETECT'); fileInputRef.current?.click(); }} className="w-full glass-card p-8 flex items-center gap-6 rounded-[2.5rem] hover:bg-slate-800 transition-all active-haptic text-left">
+                        <span className="text-4xl">✨</span>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-black text-white uppercase italic">AI Smart Sync</span>
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Single Photo Auto-ID</span>
+                        </div>
+                    </button>
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileUpload} />
                 <div className="text-center">
-                    <button onClick={() => setStep('name')} className="text-[9px] font-black text-gray-700 uppercase italic">‹ Edit Company</button>
+                    <button onClick={() => setStep('name')} className="text-[10px] font-black text-slate-600 uppercase italic">‹ Go Back</button>
                 </div>
             </div>
         );
@@ -234,100 +237,70 @@ YEAR: ${editableData.engineYear || 'MISSING'}
 
     if (step === 'extraction') {
         return (
-            <div className="max-w-4xl mx-auto py-10 space-y-8 animate-in fade-in duration-500 pb-20">
-                <div className="flex justify-between items-center px-4 no-print">
+            <div className="max-w-4xl mx-auto py-10 space-y-8 animate-in fade-in duration-500 pb-24">
+                <div className="flex justify-between items-center px-4">
                     <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic">ID: {sessionId}</span>
+                        <span className="text-[10px] font-black text-carb-accent uppercase italic">{sessionId}</span>
                         <h2 className="text-xl font-black text-white uppercase italic tracking-tighter leading-none">{clientName}</h2>
                     </div>
-                    <button 
-                        onClick={() => { triggerHaptic('light'); fileInputRef.current?.click(); }} 
-                        className="bg-white/10 border border-white/20 px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest text-white active-haptic"
-                    >
-                        + Add Document
-                    </button>
+                    <button onClick={() => fileInputRef.current?.click()} className="bg-slate-800 border border-white/5 px-6 py-3 rounded-2xl text-[9px] font-black uppercase text-white active-haptic">+ Add Document</button>
                 </div>
 
                 {loading ? (
-                    <div className="glass p-20 rounded-[4rem] flex flex-col items-center gap-6">
-                        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] animate-pulse">Syncing NorCal Cloud Data...</p>
+                    <div className="glass-card p-20 rounded-[4rem] flex flex-col items-center gap-6">
+                        <div className="w-16 h-16 border-4 border-carb-accent border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-[10px] font-black text-carb-accent uppercase tracking-[0.4em] animate-pulse">Syncing NorCal Data...</p>
                     </div>
                 ) : (
                     <div className="space-y-8">
                         <div className="space-y-4">
-                            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic ml-4">Evidence Gallery</h3>
+                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-4">Source Evidence</h3>
                             <div className="flex gap-4 overflow-x-auto pb-4 px-2 no-scrollbar">
                                 {previewUrls.map((url, i) => (
-                                    <div key={i} className="flex-shrink-0 w-64 h-48 rounded-3xl overflow-hidden border border-white/10 shadow-xl group relative">
-                                        <img src={url} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt={`Source ${i}`} />
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => window.open(url)} className="bg-white/10 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest">Full Preview</button>
+                                    <div key={i} className="flex-shrink-0 w-64 h-48 rounded-3xl overflow-hidden border border-white/5 shadow-xl group relative">
+                                        <img src={url} className="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all" alt="Doc" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                            <button onClick={() => window.open(url)} className="bg-white/10 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase">View Full</button>
                                         </div>
                                     </div>
                                 ))}
-                                <button 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="flex-shrink-0 w-64 h-48 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-gray-600 hover:bg-white/5 transition-all"
-                                >
-                                    <span className="text-3xl">+</span>
-                                    <span className="text-[8px] font-black uppercase tracking-widest">Add Evidence</span>
-                                </button>
                             </div>
                         </div>
 
-                        <div className="glass p-8 sm:p-12 rounded-[3.5rem] border border-white/10 space-y-10 bg-white/5 shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8">
-                                <button onClick={copyFullTemplate} className="text-blue-500 text-xl active-haptic">📋</button>
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <h3 className="text-3xl font-black italic uppercase text-white tracking-tighter">OVI Audit</h3>
-                                <p className="text-[9px] font-bold text-red-400 uppercase tracking-widest italic">Manual Corrections tracked for learning accuracy</p>
+                        <div className="glass-card p-8 sm:p-12 rounded-[3.5rem] space-y-10 shadow-2xl relative">
+                            <button onClick={copyTemplate} className="absolute top-8 right-8 text-xl opacity-40 hover:opacity-100 active-haptic">📋</button>
+                            <div className="space-y-1">
+                                <h3 className="text-3xl font-black italic uppercase text-white tracking-tighter">OVI Manual Audit</h3>
+                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic">Always verify AI output against physical tags</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 {[
-                                    { label: 'VIN (Never I, O, Q)', ai: originalAiData?.vin, key: 'vin' },
-                                    { label: 'License Plate ID', ai: originalAiData?.licensePlate, key: 'licensePlate' },
-                                    { label: 'Engine Family ID', ai: originalAiData?.engineFamilyName, key: 'engineFamilyName' },
-                                    { label: 'Odometer (Mileage)', ai: originalAiData?.mileage, key: 'mileage' },
-                                    { label: 'Engine Manufacturer', ai: originalAiData?.engineManufacturer, key: 'engineManufacturer' },
-                                    { label: 'Engine Year', ai: originalAiData?.engineYear, key: 'engineYear' },
-                                ].map((item) => {
-                                    const isCorrected = editableData[item.key] && editableData[item.key] !== item.ai;
-                                    return (
-                                        <div key={item.key} className="space-y-3">
-                                            <div className="flex justify-between items-center px-1">
-                                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{item.label}</label>
-                                                {isCorrected && <span className="text-[7px] font-black text-orange-500 uppercase italic animate-pulse">Field Corrected</span>}
-                                            </div>
-                                            <div className="relative">
-                                                <input 
-                                                    value={editableData[item.key] || ''}
-                                                    onChange={(e) => handleFieldChange(item.key, e.target.value.toUpperCase())}
-                                                    placeholder="Manual input..."
-                                                    className={`w-full bg-black/60 border rounded-2xl py-6 px-8 text-lg font-black tracking-tight outline-none transition-all uppercase shadow-inner ${isCorrected ? 'border-orange-500/40 text-orange-400' : 'border-white/10 text-white focus:border-blue-500'}`}
-                                                />
-                                            </div>
-                                            {item.ai && (
-                                                <div className="flex items-center gap-2 ml-4">
-                                                    <span className="text-[8px] font-black text-gray-700 uppercase">AI RAW:</span>
-                                                    <span className="text-[8px] font-black text-gray-600 italic truncate max-w-[200px]">{item.ai}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                    { label: 'VIN (Identity)', key: 'vin' },
+                                    { label: 'License Plate', key: 'licensePlate' },
+                                    { label: 'Engine Family ID', key: 'engineFamilyName' },
+                                    { label: 'Odometer (Mileage)', key: 'mileage' },
+                                    { label: 'Engine Year', key: 'engineYear' },
+                                    { label: 'Model Name', key: 'engineModel' },
+                                ].map((item) => (
+                                    <FieldInput 
+                                        key={item.key}
+                                        label={item.label}
+                                        fieldKey={item.key}
+                                        value={editableData[item.key]}
+                                        aiValue={originalAiData?.[item.key]}
+                                        onChange={(v) => handleFieldChange(item.key, v)}
+                                    />
+                                ))}
                             </div>
 
-                            <div className="pt-8 space-y-4">
-                                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest text-center italic">Component Status (Emission Control)</p>
+                            <div className="pt-8 space-y-4 border-t border-white/5">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center italic">Component Checklist</p>
                                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
                                     {['EGR', 'SCR', 'TWC', 'NOx', 'SC/TC', 'ECM/PCM', 'DPF'].map(comp => (
-                                        <div key={comp} className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center active:scale-95 transition-all cursor-pointer hover:bg-green-500/5 group">
-                                            <p className="text-[8px] font-black text-gray-600 uppercase mb-1 group-hover:text-green-500 transition-colors">{comp}</p>
-                                            <p className="text-xl font-black text-green-500">P</p>
+                                        <div key={comp} className="bg-slate-950/40 p-4 rounded-2xl border border-white/5 text-center">
+                                            <p className="text-[8px] font-bold text-slate-600 uppercase mb-1">{comp}</p>
+                                            <p className="text-xl font-black text-carb-green italic">P</p>
                                         </div>
                                     ))}
                                 </div>
@@ -335,8 +308,8 @@ YEAR: ${editableData.engineYear || 'MISSING'}
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 px-4">
-                            <button onClick={() => { triggerHaptic('light'); setStep('mode'); }} className="flex-1 py-7 bg-white/5 text-white font-black rounded-[2rem] uppercase tracking-widest text-[10px] border border-white/10 italic active-haptic">Restart</button>
-                            <button onClick={handleFinalSubmit} className="flex-[2] py-7 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-widest text-[11px] shadow-2xl italic active-haptic">Sync To Registry</button>
+                            <button onClick={() => { localStorage.removeItem('carb_field_draft'); setStep('name'); }} className="flex-1 py-7 bg-slate-800 text-white font-black rounded-[2rem] uppercase tracking-widest text-[10px] border border-white/5 italic active-haptic">Wipe & Restart</button>
+                            <button onClick={handleFinalSubmit} className="flex-[2] py-7 bg-carb-accent text-slate-900 font-black rounded-[2rem] uppercase tracking-widest text-[11px] shadow-2xl italic active-haptic">Archive Session</button>
                         </div>
                     </div>
                 )}
@@ -347,15 +320,15 @@ YEAR: ${editableData.engineYear || 'MISSING'}
 
     if (step === 'success') {
         return (
-            <div className="max-w-md mx-auto py-20 text-center space-y-10 animate-in zoom-in duration-500">
-                <div className="w-24 h-24 bg-green-500 rounded-full mx-auto flex items-center justify-center text-white text-4xl shadow-[0_20px_50px_rgba(34,197,94,0.4)]">✓</div>
+            <div className="max-w-md mx-auto py-24 text-center space-y-10 animate-in zoom-in duration-500">
+                <div className="w-24 h-24 bg-carb-green rounded-full mx-auto flex items-center justify-center text-slate-900 text-4xl shadow-[0_20px_50px_rgba(16,185,129,0.3)]">✓</div>
                 <div className="space-y-4">
-                    <h2 className="text-4xl font-black italic tracking-tighter uppercase text-white leading-tight">Sync Complete</h2>
-                    <p className="text-[12px] text-blue-400 font-black uppercase tracking-widest px-8 leading-relaxed italic">
-                        Session {sessionId} has been archived in the NorCal Cloud. Verification data sent to Bryan.
+                    <h2 className="text-4xl font-black italic uppercase text-white tracking-tighter">Sync Complete</h2>
+                    <p className="text-sm text-slate-400 font-medium px-8 leading-relaxed">
+                        Session <span className="text-carb-accent">{sessionId}</span> has been stored in the NorCal Cloud. Verification link sent to Dispatch.
                     </p>
                 </div>
-                <button onClick={() => { triggerHaptic('light'); onComplete(); }} className="bg-white text-black px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest italic active-haptic shadow-xl hover:scale-105 transition-transform">HUB Command</button>
+                <button onClick={onComplete} className="bg-white text-slate-900 px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-[0.3em] italic active-haptic shadow-xl">Back to Hub</button>
             </div>
         );
     }
