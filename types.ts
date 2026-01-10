@@ -10,7 +10,16 @@ export enum AppView {
   PROFILE = 'PROFILE',
   ADMIN = 'ADMIN',
   INTAKE = 'INTAKE',
-  INVOICE = 'INVOICE'
+  INVOICE = 'INVOICE',
+  CALENDAR = 'CALENDAR'
+}
+
+export interface Appointment {
+  id: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  title: string;
+  status: 'scheduled' | 'completed' | 'canceled';
 }
 
 export type IntakeMode = 'VIN_LABEL' | 'REGISTRATION' | 'ENGINE_TAG' | 'FULL_INTAKE' | 'AUTO_DETECT' | 'BATCH_MODE';

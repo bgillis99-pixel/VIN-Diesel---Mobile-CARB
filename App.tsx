@@ -18,6 +18,7 @@ const ProfileView = React.lazy(() => import('./components/ProfileView'));
 const GarageView = React.lazy(() => import('./components/GarageView'));
 const AdminView = React.lazy(() => import('./components/AdminView'));
 const InvoiceApp = React.lazy(() => import('./components/InvoiceApp'));
+const CalendarView = React.lazy(() => import('./components/CalendarView'));
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.LANDING); 
@@ -141,8 +142,8 @@ const App: React.FC = () => {
                     { id: AppView.HOME, label: 'HUB' },
                     { id: AppView.ASSISTANT, label: 'MILA' },
                     { id: AppView.ANALYZE, label: 'AI' },
+                    { id: AppView.CALENDAR, label: 'SCHED' },
                     { id: AppView.GARAGE, label: 'FLEET' },
-                    { id: AppView.PROFILE, label: 'LOG' },
                   ].map(item => (
                     <button 
                       key={item.id} 
@@ -180,6 +181,7 @@ const App: React.FC = () => {
                     {currentView === AppView.ANALYZE && <MediaTools />}
                     {currentView === AppView.PROFILE && <ProfileView user={user} onLogout={() => setUser(null)} onAdminAccess={() => setCurrentView(AppView.ADMIN)} />}
                     {currentView === AppView.ADMIN && <AdminView onNavigateInvoice={(data) => startInvoiceForClient(data)} />}
+                    {currentView === AppView.CALENDAR && <CalendarView />}
                 </Suspense>
             </div>
         </main>
