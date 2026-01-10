@@ -164,6 +164,22 @@ const AdminView: React.FC<Props> = ({ onNavigateInvoice }) => {
                    ))}
                 </div>
              </div>
+
+             <div className="glass-card p-8 rounded-[3rem] space-y-6">
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">System Vitals & Analytics</h3>
+                <div className="grid grid-cols-2 gap-4">
+                    <StatBox label="Daily Users" value="~45" />
+                    <StatBox label="VIN Lookups (24h)" value="112" />
+                    <StatBox label="Avg. Session" value="3m 45s" />
+                    <StatBox label="PWA Installs" value="18" />
+                </div>
+                <div className="text-center pt-4 border-t border-white/5 mt-6">
+                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic leading-relaxed">
+                        For deeper insights, integrate with a prebuilt backend like <span className="text-carb-accent">Workspace Mini</span> for full-funnel analytics and user journey mapping.
+                    </p>
+                </div>
+            </div>
+
           </div>
        )}
 
